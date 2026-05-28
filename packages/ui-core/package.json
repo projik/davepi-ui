@@ -1,0 +1,40 @@
+{
+  "name": "@davepi/ui-core",
+  "version": "0.0.0",
+  "description": "Framework-agnostic schema registry, widget resolver, and descriptors for davepi-ui",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./describe": {
+      "types": "./dist/describe/index.d.ts",
+      "import": "./dist/describe/index.js"
+    },
+    "./descriptor": {
+      "types": "./dist/descriptor/index.d.ts",
+      "import": "./dist/descriptor/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.8",
+    "@types/node": "^22.10.2"
+  }
+}
