@@ -18,6 +18,14 @@
     "./hooks": {
       "types": "./dist/hooks/index.d.ts",
       "import": "./dist/hooks/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js"
+    },
+    "./acl": {
+      "types": "./dist/acl/index.d.ts",
+      "import": "./dist/acl/index.js"
     }
   },
   "files": ["dist"],

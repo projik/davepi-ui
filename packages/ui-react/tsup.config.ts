@@ -5,6 +5,8 @@ export default defineConfig({
     index: 'src/index.ts',
     'auth/index': 'src/auth/index.ts',
     'hooks/index': 'src/hooks/index.ts',
+    'config/index': 'src/config/index.ts',
+    'acl/index': 'src/acl/index.ts',
   },
   format: ['esm'],
   dts: true,

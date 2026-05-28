@@ -19,7 +19,7 @@ export const ActionSpec = z.object({
   /** Confirmation prompt shown before the action runs. */
   confirm: z.string().optional(),
   /** REST mutation kind, dispatched by the runtime. */
-  kind: z.enum(['custom', 'bulkUpdate', 'bulkDelete', 'navigate']).default('custom'),
+  kind: z.enum(['custom', 'bulkUpdate', 'bulkDelete', 'navigate']).optional(),
   /** For bulkUpdate / bulkDelete: REST query and body templates. */
   query: z.record(z.unknown()).optional(),
   body: z.record(z.unknown()).optional(),
@@ -31,8 +31,8 @@ export type ActionSpec = z.infer<typeof ActionSpec>;
 export const ColumnSpec = z.object({
   field: z.string(),
   label: z.string().optional(),
-  /** Render hint when the column points into a related record. */
-  via: z.enum(['scalar', 'relation', 'aggregate']).default('scalar'),
+  /** Render hint when the column points into a related record. Defaults to scalar at runtime. */
+  via: z.enum(['scalar', 'relation', 'aggregate']).optional(),
   width: z.union([z.number(), z.string()]).optional(),
   sortable: z.boolean().optional(),
   /** Custom format hint, e.g. 'date', 'currency:USD'. */
@@ -100,7 +100,7 @@ export type DetailSpec = z.infer<typeof DetailSpec>;
 export const HeadingSpec = z.object({
   kind: z.literal('heading'),
   text: z.string(),
-  level: z.union([z.literal(1), z.literal(2), z.literal(3)]).default(1),
+  level: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
 });
 export type HeadingSpec = z.infer<typeof HeadingSpec>;
 
