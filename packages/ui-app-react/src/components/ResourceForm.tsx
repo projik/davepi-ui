@@ -81,14 +81,14 @@ export function ResourceForm({
 
   const schema = useMemo(() => {
     if (!entry) return null;
+    // Only the *specific* hidden stamped fields get unblocked — `userId`
+    // / `_id` stay server-stamped. Without this, a hidden `accountId`
+    // would drag every other stamped field into the required schema and
+    // silently reject submit.
     return zodFromDescribe(entry, {
-      includeServerStamped: hidden.size > 0,
-      fieldOverride: (field) => {
-        if (omit.has(field.name) && !hidden.has(field.name)) return undefined;
-        return undefined;
-      },
+      includeStampedFields: Array.from(hidden),
     });
-  }, [entry, hidden, omit]);
+  }, [entry, hidden]);
 
   const defaultValues = useMemo<DefaultValues<FieldValues>>(() => {
     if (!entry) return {};

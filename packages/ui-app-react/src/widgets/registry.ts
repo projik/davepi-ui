@@ -13,7 +13,7 @@ import { EmailInput } from './EmailInput';
 import { UrlInput } from './UrlInput';
 import { CurrencyInput } from './CurrencyInput';
 import { JsonEditor } from './JsonEditor';
-import { RelationPickerStub } from './RelationPickerStub';
+import { MultiRelationPicker, RelationPicker } from './RelationPicker';
 import { FileUploaderStub } from './FileUploaderStub';
 
 /**
@@ -34,8 +34,8 @@ export const widgetRegistry: Record<WidgetKind, ComponentType<WidgetComponentPro
   EmailInput,
   UrlInput,
   CurrencyInput,
-  RelationPicker: RelationPickerStub,
-  MultiRelationPicker: RelationPickerStub,
+  RelationPicker,
+  MultiRelationPicker,
   FileUploader: FileUploaderStub,
   JsonEditor,
   RichTextEditor: TextAreaWidget,

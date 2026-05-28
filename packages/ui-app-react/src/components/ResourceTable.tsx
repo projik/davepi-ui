@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, ChevronsUpDown, Plus, Search } from 'lucide-react';
 import { useDescribe, useResourceList } from '@davepi/ui-react';
 import {
@@ -33,20 +33,60 @@ export interface ResourceTableProps {
   columns?: string[];
   /** Hidden filters merged into every list call. */
   filters?: Record<string, unknown>;
+  /**
+   * Embedded mode: hides the page-level header (title, search bar, "New")
+   * so the table can sit inside another container (typically `<RelatedList>`).
+   * Standalone mode (default) renders the full chrome.
+   */
+  embedded?: boolean;
+  /**
+   * When true (default in standalone mode), filter params from the URL
+   * (e.g. `?accountId=xxx`) are merged into the list query. Lets a child
+   * list page deep-link back from a parent detail.
+   */
+  readUrlFilters?: boolean;
 }
 
 const STAMPED = new Set(['_id', '__v', 'createdAt', 'updatedAt', 'deletedAt', 'userId', 'accountId']);
 
-export function ResourceTable({ resourcePath, columns, filters }: ResourceTableProps) {
+export function ResourceTable({
+  resourcePath,
+  columns,
+  filters,
+  embedded = false,
+  readUrlFilters,
+}: ResourceTableProps) {
   const { data: describe } = useDescribe();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ field: string; dir: 'asc' | 'desc' } | null>(null);
+  const [searchParams] = useSearchParams();
+
+  const shouldReadUrl = readUrlFilters ?? !embedded;
+  const urlFilters = useMemo(() => {
+    if (!shouldReadUrl) return undefined;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of searchParams.entries()) {
+      if (k.startsWith('__')) continue;
+      out[k] = v;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }, [searchParams, shouldReadUrl]);
+
+  const mergedFilters = useMemo(
+    () => ({ ...(urlFilters ?? {}), ...(filters ?? {}) }),
+    [filters, urlFilters]
+  );
 
   const sortParam = sort ? `${sort.field}:${sort.dir}` : undefined;
 
   const list = useResourceList<Record<string, unknown>>(resourcePath, {
-    params: { page, q: search || undefined, sort: sortParam, filter: filters },
+    params: {
+      page,
+      q: search || undefined,
+      sort: sortParam,
+      filter: Object.keys(mergedFilters).length ? mergedFilters : undefined,
+    },
   });
 
   const entry = describe?.registry.get(resourcePath);
@@ -75,36 +115,38 @@ export function ResourceTable({ resourcePath, columns, filters }: ResourceTableP
 
   return (
     <div className="space-y-4">
-      <header className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{display.pluralLabel}</h1>
-          <p className="text-sm text-muted-foreground">
-            <code>{entry.path}</code>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {searchable.length ? (
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => {
-                  setPage(1);
-                  setSearch(e.target.value);
-                }}
-                placeholder={`Search ${display.pluralLabel.toLowerCase()}…`}
-                className="w-64 pl-8"
-              />
-            </div>
-          ) : null}
-          <Button asChild>
-            <Link to={`/r/${resourcePath}/new`}>
-              <Plus className="mr-1 h-4 w-4" />
-              New {display.label}
-            </Link>
-          </Button>
-        </div>
-      </header>
+      {!embedded ? (
+        <header className="flex items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{display.pluralLabel}</h1>
+            <p className="text-sm text-muted-foreground">
+              <code>{entry.path}</code>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {searchable.length ? (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => {
+                    setPage(1);
+                    setSearch(e.target.value);
+                  }}
+                  placeholder={`Search ${display.pluralLabel.toLowerCase()}…`}
+                  className="w-64 pl-8"
+                />
+              </div>
+            ) : null}
+            <Button asChild>
+              <Link to={prefillCreateUrl(resourcePath, mergedFilters)}>
+                <Plus className="mr-1 h-4 w-4" />
+                New {display.label}
+              </Link>
+            </Button>
+          </div>
+        </header>
+      ) : null}
       <div className="rounded-md border border-border bg-card">
         <Table>
           <TableHeader>
@@ -208,4 +250,18 @@ function formatCell(value: unknown): string {
   if (typeof value === 'object') return JSON.stringify(value);
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return String(value);
+}
+
+/**
+ * Carry active filters into the create URL so a child opened from a
+ * filtered list inherits the parent FK pre-stamped.
+ */
+function prefillCreateUrl(resourcePath: string, filters: Record<string, unknown>): string {
+  const entries = Object.entries(filters).filter(([k, v]) => v != null && k !== '__page');
+  if (!entries.length) return `/r/${resourcePath}/new`;
+  const qs = new URLSearchParams();
+  for (const [k, v] of entries) {
+    qs.set(`prefill_${k}`, String(v));
+  }
+  return `/r/${resourcePath}/new?${qs.toString()}`;
 }

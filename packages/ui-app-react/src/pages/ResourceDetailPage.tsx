@@ -16,13 +16,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RelatedList } from '@/components/RelatedList';
 
 const SERVER_STAMPED = new Set(['__v', 'userId', 'accountId']);
 
 /**
- * Schema-driven detail page. Fields rendered in describe order with
- * type-aware formatting. Edit + delete buttons in the header; related
- * lists land in M2 via the relation graph.
+ * Schema-driven detail page.
+ *
+ * Renders fields in describe order with type-aware formatting and ships
+ * Edit + Delete actions. Every child relation (declared `hasMany`/`hasOne`
+ * plus inverse edges synthesised by `SchemaRegistry`) becomes either an
+ * embedded `<RelatedList>` (single relation) or a tab (multiple
+ * relations) so users can browse and inline-create children without
+ * leaving the parent page.
  */
 export function ResourceDetailPage() {
   const params = useParams<{ path: string; id: string }>();
@@ -44,8 +51,26 @@ export function ResourceDetailPage() {
 
   const preview = describe.registry.preview(path, record.data);
   const visibleFields = entry.fields.filter((f) => !SERVER_STAMPED.has(f.name));
-  const relations = describe.registry.relations(path);
-  const childRelations = relations.filter((r) => r.kind === 'hasMany' || r.kind === 'hasOne');
+  const childRelations = describe.registry
+    .relations(path)
+    .filter((r) => r.kind === 'hasMany' || r.kind === 'hasOne');
+
+  const detailsBlock = (
+    <section className="rounded-md border border-border bg-card">
+      <dl className="divide-y divide-border">
+        {visibleFields.map((field) => (
+          <div key={field.name} className="grid grid-cols-3 gap-4 px-4 py-3">
+            <dt className="text-sm text-muted-foreground">
+              {labelize(field.name, {
+                stripIdSuffix: field.name.endsWith('Id') && field.name !== 'Id',
+              })}
+            </dt>
+            <dd className="col-span-2 text-sm">{formatField(record.data[field.name])}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
 
   return (
     <div className="space-y-6">
@@ -71,46 +96,40 @@ export function ResourceDetailPage() {
         </div>
       </header>
 
-      <section className="rounded-md border border-border bg-card">
-        <dl className="divide-y divide-border">
-          {visibleFields.map((field) => (
-            <div key={field.name} className="grid grid-cols-3 gap-4 px-4 py-3">
-              <dt className="text-sm text-muted-foreground">
-                {labelize(field.name, {
-                  stripIdSuffix: field.name.endsWith('Id') && field.name !== 'Id',
-                })}
-              </dt>
-              <dd className="col-span-2 text-sm">{formatField(record.data[field.name])}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      {childRelations.length ? (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Related</h2>
-          <div className="flex flex-wrap gap-2">
+      {childRelations.length === 0 ? (
+        detailsBlock
+      ) : (
+        <Tabs defaultValue="details">
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
             {childRelations.map((rel) => {
               const target = describe.registry.display(rel.target);
+              const key = `${rel.target}:${rel.foreignKey}`;
               return (
-                <Button key={rel.target + rel.foreignKey} asChild variant="outline" size="sm">
-                  <Link
-                    to={{
-                      pathname: `/r/${rel.target}`,
-                      search: `?${rel.foreignKey}=${encodeURIComponent(id)}`,
-                    }}
-                  >
-                    {target.pluralLabel}
-                  </Link>
-                </Button>
+                <TabsTrigger key={key} value={key}>
+                  {target.pluralLabel}
+                </TabsTrigger>
               );
             })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Embedded relation lists with inline create land in M2.
-          </p>
-        </section>
-      ) : null}
+          </TabsList>
+          <TabsContent value="details" className="mt-4">
+            {detailsBlock}
+          </TabsContent>
+          {childRelations.map((rel) => {
+            const key = `${rel.target}:${rel.foreignKey}`;
+            return (
+              <TabsContent key={key} value={key} className="mt-4">
+                <RelatedList
+                  parentPath={path}
+                  parentId={id}
+                  target={rel.target}
+                  foreignKey={rel.foreignKey}
+                />
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      )}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>

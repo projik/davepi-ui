@@ -37,6 +37,13 @@ const SERVER_STAMPED = new Set([
 export interface ZodFromDescribeOptions {
   /** Set true to include server-stamped fields. Defaults to false. */
   includeServerStamped?: boolean;
+  /**
+   * Explicit allowlist of server-stamped fields to include. Wins over
+   * `includeServerStamped: false` — useful when a caller wants to inject
+   * exactly one stamped field (e.g. a parent FK) without unblocking the
+   * rest (`userId`, `_id`, …).
+   */
+  includeStampedFields?: readonly string[];
   /** Custom per-field override. Returning `undefined` keeps the default. */
   fieldOverride?: (field: DescribeField) => ZodTypeAny | undefined;
 }
@@ -45,9 +52,15 @@ export function zodFromDescribe(
   entry: DescribeSchemaEntry,
   opts: ZodFromDescribeOptions = {}
 ): z.ZodObject<Record<string, ZodTypeAny>> {
+  const stampedAllow = new Set(opts.includeStampedFields ?? []);
   const shape: Record<string, ZodTypeAny> = {};
   for (const field of entry.fields) {
-    if (!opts.includeServerStamped && SERVER_STAMPED.has(field.name)) continue;
+    if (
+      !opts.includeServerStamped &&
+      SERVER_STAMPED.has(field.name) &&
+      !stampedAllow.has(field.name)
+    )
+      continue;
     const override = opts.fieldOverride?.(field);
     shape[field.name] = override ?? buildField(field);
   }
