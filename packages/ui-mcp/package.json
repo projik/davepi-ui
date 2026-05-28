@@ -1,0 +1,28 @@
+{
+  "name": "@davepi/ui-mcp",
+  "version": "0.0.0",
+  "description": "MCP server exposing the davepi-ui component manifest, descriptor schemas, and live resource graph to AI agents",
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "davepi-ui-mcp": "./dist/server.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@davepi/ui-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsup": "^8.3.5",
+    "@types/node": "^22.10.2"
+  }
+}

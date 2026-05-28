@@ -4,7 +4,9 @@ import { AppShell } from './components/AppShell';
 import { LoginScreen } from './pages/LoginScreen';
 import { DashboardPage } from './pages/DashboardPage';
 import { ResourceListPage } from './pages/ResourceListPage';
-import { ResourceDetailStubPage } from './pages/ResourceDetailStubPage';
+import { ResourceCreatePage } from './pages/ResourceCreatePage';
+import { ResourceEditPage } from './pages/ResourceEditPage';
+import { ResourceDetailPage } from './pages/ResourceDetailPage';
 
 export function App() {
   const { status } = useAuth();
@@ -30,7 +32,9 @@ export function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="r/:path" element={<ResourceListPage />} />
-        <Route path="r/:path/:id" element={<ResourceDetailStubPage />} />
+        <Route path="r/:path/new" element={<ResourceCreatePage />} />
+        <Route path="r/:path/:id" element={<ResourceDetailPage />} />
+        <Route path="r/:path/:id/edit" element={<ResourceEditPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
