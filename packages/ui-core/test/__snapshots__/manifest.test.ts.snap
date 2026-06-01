@@ -1,0 +1,276 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`component manifest > snapshot of public surface 1`] = `
+[
+  {
+    "agentNotes": "Prefer the JSON spec form when emitting a page descriptor; pass explicit \`columns\` only when the default first-N fields are wrong for the use case.",
+    "category": "data",
+    "description": "Schema-driven list table. Reads the \`/_describe\` entry for the resource, picks default columns from the first non-stamped fields, supports sortable headers, full-text search (when the schema declares searchable fields), and pagination. Row clicks navigate to \`/r/:path/:id\`.",
+    "examples": [
+      {
+        "jsx": "<ResourceTable resourcePath="contact" />",
+        "label": "List all contacts",
+        "spec": {
+          "kind": "table",
+          "resource": "contact",
+        },
+      },
+      {
+        "label": "List active deals with explicit columns",
+        "spec": {
+          "columns": [
+            {
+              "field": "name",
+              "label": "Deal name",
+            },
+            {
+              "field": "stage",
+            },
+            {
+              "field": "amount",
+              "format": "currency:USD",
+            },
+            {
+              "field": "closeDate",
+            },
+          ],
+          "filters": {
+            "stage": {
+              "$ne": "lost",
+            },
+          },
+          "kind": "table",
+          "resource": "deal",
+        },
+      },
+    ],
+    "name": "ResourceTable",
+    "package": "@davepi/ui-app-react",
+    "propsSchema": {
+      "properties": {
+        "columns": {
+          "description": "Explicit column field names. Defaults to first ~5 non-stamped fields.",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "filters": {
+          "additionalProperties": true,
+          "description": "Mongo-querystring filters merged into every list call.",
+          "type": "object",
+        },
+        "resourcePath": {
+          "description": "Short resource path, e.g. "account" or "contact".",
+          "type": "string",
+        },
+      },
+      "required": [
+        "resourcePath",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "category": "data",
+    "description": "Auto-generated create/edit form. Builds a zod schema from \`/_describe\`, resolves a widget per field, drives validation through react-hook-form. Hidden fields stay in the payload but render readonly — used by RelatedCreateModal in M2 to stamp parent FKs.",
+    "examples": [
+      {
+        "label": "Create new contact form",
+        "spec": {
+          "kind": "form",
+          "resource": "contact",
+          "sections": [
+            {
+              "fields": [
+                {
+                  "field": "first_name",
+                },
+                {
+                  "field": "last_name",
+                },
+              ],
+              "title": "Identity",
+            },
+          ],
+        },
+      },
+    ],
+    "name": "ResourceForm",
+    "package": "@davepi/ui-app-react",
+    "propsSchema": {
+      "properties": {
+        "hiddenFields": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "initial": {
+          "additionalProperties": true,
+          "type": "object",
+        },
+        "omitFields": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "resourcePath": {
+          "type": "string",
+        },
+        "submitLabel": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "resourcePath",
+        "onSubmit",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "category": "data",
+    "description": "Detail view for a single record. Renders fields in describe order with type-aware formatting; ships Edit and Delete actions. Lists related resources for one-click navigation.",
+    "examples": [
+      {
+        "label": "View an account",
+        "spec": {
+          "id": "<account-id>",
+          "kind": "detail",
+          "resource": "account",
+        },
+      },
+    ],
+    "name": "ResourceDetail",
+    "package": "@davepi/ui-app-react",
+    "propsSchema": {
+      "properties": {
+        "id": {
+          "type": "string",
+        },
+        "resourcePath": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "resourcePath",
+        "id",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "category": "auth",
+    "description": "JWT auth context. Memory access token + localStorage refresh token + rotation on refresh + 401-retry interceptor. Decodes JWT for roles so ACL gating works without a /me round-trip.",
+    "examples": [
+      {
+        "jsx": "<AuthProvider baseUrl="http://localhost:4001"><App /></AuthProvider>",
+        "label": "Mount at app root",
+        "spec": {},
+      },
+    ],
+    "name": "AuthProvider",
+    "package": "@davepi/ui-react",
+    "propsSchema": {
+      "properties": {
+        "baseUrl": {
+          "description": "davepi backend base URL.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "baseUrl",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "category": "auth",
+    "description": "Conditional render guard. Shows children only when authenticated (and optionally holding one of the listed roles). Server-side ACL is still the source of truth.",
+    "examples": [
+      {
+        "jsx": "<AuthGuard roles={["admin"]} fallback={<NotAllowed />}><AdminPanel /></AuthGuard>",
+        "label": "Admin-only section",
+        "spec": {},
+      },
+    ],
+    "name": "AuthGuard",
+    "package": "@davepi/ui-react",
+    "propsSchema": {
+      "properties": {
+        "roles": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+      },
+      "type": "object",
+    },
+  },
+]
+`;
+
+exports[`recipes > snapshot of curated recipes 1`] = `
+[
+  {
+    "description": "Default list page with sort + search. The simplest descriptor — useful as a base for per-resource overrides.",
+    "id": "list-with-search",
+    "spec": {
+      "blocks": [
+        {
+          "kind": "table",
+          "resource": "<resource>",
+        },
+      ],
+      "kind": "page",
+      "title": "<resource> list",
+    },
+    "title": "Searchable resource list",
+  },
+  {
+    "description": "Detail view of one record. M1 uses link-out buttons; once M2 ships, swap the \`blocks\` to include embedded \`<RelatedList>\` blocks.",
+    "id": "detail-with-children",
+    "spec": {
+      "blocks": [
+        {
+          "id": "<id>",
+          "kind": "detail",
+          "resource": "<resource>",
+        },
+      ],
+      "kind": "page",
+      "title": "View <resource>",
+    },
+    "title": "Detail page with related lists",
+  },
+  {
+    "description": "Navigate from a parent detail to \`/r/<child>/new?prefill_<parentFk>=<parentId>\` — the form renders the FK hidden but keeps it in the submitted payload.",
+    "id": "pre-stamped-create",
+    "spec": {
+      "blocks": [
+        {
+          "kind": "form",
+          "resource": "<child>",
+          "sections": [
+            {
+              "fields": [
+                {
+                  "field": "<parentFk>",
+                  "hidden": true,
+                },
+              ],
+              "title": "Details",
+            },
+          ],
+        },
+      ],
+      "kind": "page",
+      "title": "New <child>",
+    },
+    "title": "Create a child with parent FK pre-stamped",
+  },
+]
+`;

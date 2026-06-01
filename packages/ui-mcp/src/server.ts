@@ -11,6 +11,11 @@
  *   - validate_page_spec({ spec }): runs the JSON spec through PageSpec.parse
  *   - list_resources(): when DAVEPI_API_URL is set, lists the live resource
  *     paths + display labels + relation graph derived from /_describe
+ *   - relation_graph(): the full edge list across every resource pair —
+ *     declared `belongsTo`/`hasMany`/`hasOne` plus inverses synthesised
+ *     from FK-by-convention. Edge shape: `{ source, target, kind,
+ *     foreignKey, declared }`. Lets an agent reason about which resources
+ *     can embed which children without walking every entry one by one.
  *
  * Transport: stdio. Configure in `.mcp.json`:
  *   {
@@ -88,6 +93,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         'List live resource paths from the davepi backend (requires DAVEPI_API_URL). Returns display labels, displayField, and an inferred relation graph including synthetic inverses.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     },
+    {
+      name: 'relation_graph',
+      description:
+        'Full relation edge list across every resource (requires DAVEPI_API_URL). Returns declared belongsTo/hasMany/hasOne plus synthetic inverses inferred from FK-by-convention. Use to discover which resources embed which children.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
   ],
 }));
 
@@ -144,6 +155,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           relations: registry.relations(p),
         }));
         return jsonReply({ apiUrl: API_URL, resources });
+      } catch (err) {
+        return errorReply(err instanceof Error ? err.message : 'fetchDescribe failed');
+      }
+    }
+
+    case 'relation_graph': {
+      if (!API_URL) {
+        return errorReply(
+          'DAVEPI_API_URL is not set; cannot fetch live schema. Set it in the MCP server env.'
+        );
+      }
+      try {
+        const manifest = await fetchDescribe({
+          baseUrl: API_URL,
+          getToken: () => API_TOKEN,
+        });
+        const registry = new SchemaRegistry(manifest);
+        const edges: Array<Record<string, unknown>> = [];
+        const seen = new Set<string>();
+        for (const source of registry.paths()) {
+          for (const edge of registry.relations(source)) {
+            const key = `${edge.source}|${edge.target}|${edge.foreignKey}|${edge.kind}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            edges.push({
+              source: edge.source,
+              target: edge.target,
+              kind: edge.kind,
+              name: edge.name,
+              foreignKey: edge.foreignKey,
+              declared: edge.declared,
+            });
+          }
+        }
+        return jsonReply({ apiUrl: API_URL, edgeCount: edges.length, edges });
       } catch (err) {
         return errorReply(err instanceof Error ? err.message : 'fetchDescribe failed');
       }
