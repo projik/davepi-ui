@@ -1,10 +1,17 @@
 import type { DescribeManifest } from '../../src/describe/types.js';
 
 /**
- * Minimal manifest fixture modelled on davepi's real `_describe` output
- * for three representative schemas: `account` (parent with displayField),
- * `contact` (FK-by-convention `accountId` with no explicit relations block),
- * `deal` (explicit `belongsTo` relation, enum + currency hints).
+ * Minimal manifest fixture shaped like a real davepi M0.5 backend response:
+ *
+ *   - `account` (parent, hint-rich) — receives the synthetic inverse
+ *     `hasMany: deal` because `deal` declares `belongsTo: account`.
+ *     The backend stamps `inverse: true` on the synthetic edge.
+ *   - `contact` (no relations block, `accountId` field marked `stamped`)
+ *     — accountId is the tenant marker on davepi seed schemas, NOT a
+ *     parent FK. With no `belongsTo`, the backend does NOT synthesise
+ *     an inverse anywhere; the UI hides the field from create / edit forms.
+ *   - `deal` — explicit `belongsTo: account`, plus an enum + currency
+ *     hint to cover field-hint passthrough.
  */
 export const manifest: DescribeManifest = {
   service: { name: 'test', version: '0.0.0' },
@@ -20,11 +27,15 @@ export const manifest: DescribeManifest = {
       pluralLabel: 'Accounts',
       displayField: 'accountName',
       fields: [
-        { name: 'userId', type: 'String', required: true },
+        { name: 'userId', type: 'String', required: true, stamped: true },
         { name: 'accountName', type: 'String', required: true, searchable: true },
         { name: 'description', type: 'String' },
         { name: 'website', type: 'String' },
       ],
+      // Backend M0.5 auto-populates the inverse from deal.belongsTo: account.
+      relations: {
+        deals: { kind: 'hasMany', target: 'deal', foreignKey: 'accountId', inverse: true },
+      },
       features: { softDelete: true, audit: true, search: ['accountName'] },
       endpoints: {
         list: 'GET    /api/v1/account',
@@ -45,8 +56,8 @@ export const manifest: DescribeManifest = {
       path: '/api/v1/contact',
       collection: 'contact',
       fields: [
-        { name: 'userId', type: 'String', required: true },
-        { name: 'accountId', type: 'String', required: true },
+        { name: 'userId', type: 'String', required: true, stamped: true },
+        { name: 'accountId', type: 'String', required: true, stamped: true },
         { name: 'first_name', type: 'String', required: true, searchable: true },
         { name: 'last_name', type: 'String', required: true },
         { name: 'email', type: 'String' },
@@ -70,7 +81,7 @@ export const manifest: DescribeManifest = {
       collection: 'deal',
       displayField: 'name',
       fields: [
-        { name: 'userId', type: 'String', required: true },
+        { name: 'userId', type: 'String', required: true, stamped: true },
         { name: 'accountId', type: 'String', required: true, reference: 'account' },
         { name: 'name', type: 'String', required: true, searchable: true },
         { name: 'stage', type: 'String', enum: ['lead', 'qualified', 'won', 'lost'] },

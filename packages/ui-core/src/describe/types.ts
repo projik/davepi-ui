@@ -44,20 +44,35 @@ export interface DescribeField {
   searchWeight?: number;
   acl?: DescribeFieldAcl;
   file?: DescribeFileMeta;
-  /** Backend M0.5 addition (planned). */
+  /** Enum values for String fields (mongoose `enum` array). */
   enum?: readonly string[];
-  /** Backend M0.5 addition (planned). e.g. 'rich-text' | 'textarea' | 'email' | 'url' | 'currency'. */
+  /** Widget kind hint, e.g. 'rich-text' | 'textarea' | 'email' | 'url' | 'currency'. */
   widget?: string;
-  /** Backend M0.5 addition (planned). e.g. 'currency:USD'. */
+  /** Value-format hint, e.g. 'currency:USD' | 'date'. */
   format?: string;
-  /** Backend M0.5 addition (planned). Explicit display label override. */
+  /** Explicit display label override for the field. */
   label?: string;
+  /** True when the server fills this field from the JWT — UI hides it from create / edit forms. */
+  stamped?: boolean;
 }
 
 export type DescribeRelation =
   | { kind: 'belongsTo'; target: string; localKey: string }
-  | { kind: 'hasMany'; target: string; foreignKey?: string; where?: Record<string, unknown> }
-  | { kind: 'hasOne'; target: string; foreignKey?: string; where?: Record<string, unknown> };
+  | {
+      kind: 'hasMany';
+      target: string;
+      foreignKey?: string;
+      where?: Record<string, unknown>;
+      /** True when the backend synthesised this from a sibling `belongsTo`. */
+      inverse?: boolean;
+    }
+  | {
+      kind: 'hasOne';
+      target: string;
+      foreignKey?: string;
+      where?: Record<string, unknown>;
+      inverse?: boolean;
+    };
 
 export interface DescribeAcl {
   list?: string[];

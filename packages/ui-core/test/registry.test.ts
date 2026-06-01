@@ -31,20 +31,25 @@ describe('SchemaRegistry', () => {
     expect(display.displayField).toBe('first_name');
   });
 
-  it('synthesises an inverse hasMany on account for contact.accountId', () => {
-    const rels = registry.relations('account');
-    const contactsEdge = rels.find((r) => r.target === 'contact');
-    expect(contactsEdge).toBeDefined();
-    expect(contactsEdge?.foreignKey).toBe('accountId');
-    expect(contactsEdge?.kind).toBe('hasMany');
-    expect(contactsEdge?.declared).toBe(false);
-  });
-
-  it('synthesises an inverse hasMany on account for deal via belongsTo + via field.reference', () => {
+  it('surfaces backend-synthesised inverse hasMany from sibling belongsTo', () => {
     const rels = registry.relations('account');
     const dealsEdge = rels.find((r) => r.target === 'deal');
     expect(dealsEdge).toBeDefined();
     expect(dealsEdge?.foreignKey).toBe('accountId');
+    expect(dealsEdge?.kind).toBe('hasMany');
+    // `inverse: true` on the backend translates to `declared: false`
+    // (the parent didn't author it) plus the explicit `inverse: true` flag.
+    expect(dealsEdge?.declared).toBe(false);
+    expect(dealsEdge?.inverse).toBe(true);
+  });
+
+  it('does not synthesise an inverse for stamped tenant fields like contact.accountId', () => {
+    const rels = registry.relations('account');
+    const contactsEdge = rels.find((r) => r.target === 'contact');
+    // Contact's accountId is the tenant marker (stamped), not a parent
+    // FK — backend does not auto-synthesise an inverse without a
+    // belongsTo declaration. UI hides the field from forms instead.
+    expect(contactsEdge).toBeUndefined();
   });
 
   it('exposes declared relations on deal', () => {
@@ -53,6 +58,11 @@ describe('SchemaRegistry', () => {
     expect(account?.declared).toBe(true);
     expect(account?.kind).toBe('belongsTo');
     expect(account?.foreignKey).toBe('accountId');
+    expect(account?.inverse).toBeUndefined();
+  });
+
+  it('returns empty relations for resources with no relations block', () => {
+    expect(registry.relations('contact')).toEqual([]);
   });
 
   it('previews a record using displayField', () => {

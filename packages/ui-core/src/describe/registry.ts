@@ -11,36 +11,35 @@ import { labelize, pluralize } from '../label.js';
  *
  * Responsibilities:
  *   - Resolve a resource by short path (`account`) or full key (`v1/account`).
- *   - Compute resource display labels with hint fallback chain
- *     (explicit `label` → title-cased path).
- *   - Compute the canonical `displayField` for a resource (explicit
- *     `displayField` hint → field named `name|title|<path>Name` → first
- *     searchable String field → `_id`). Used by RelationPicker and breadcrumbs.
- *   - Build a bidirectional relation graph. For every `belongsTo` declared
- *     on schema A pointing to B, register a synthetic inverse `hasMany`
- *     edge on B even when B's schema omits one. This is what lets
- *     `<RelatedList parent="account" relation="contacts">` work today,
- *     before backend M0.5 ships explicit inverse relations.
+ *   - Compute resource display labels with a hint-first fallback chain
+ *     (`entry.label` → title-cased path).
+ *   - Compute the canonical `displayField` for a resource:
+ *     `entry.displayField` → field named `name|title|<path>Name` →
+ *     first searchable String field → `_id`. The hint is the primary
+ *     source; sniffing covers backends that haven't been upgraded yet
+ *     or schemas without an explicit hint.
+ *   - Expose declared `belongsTo` / `hasMany` / `hasOne` edges (which,
+ *     post-M0.5, include the inverse `hasMany` edges the backend
+ *     auto-populates from sibling `belongsTo` declarations).
  *
  * Build it once (`new SchemaRegistry(manifest)`) at app boot; treat it as
  * immutable. Re-create when `/_describe` is refetched.
  */
 
-export interface InverseRelation {
-  /** Parent resource path that this synthetic edge lives on. */
-  source: string;
-  /** Child resource path (the original `belongsTo` declarer). */
-  target: string;
-  /** FK field on the child pointing back to the parent. */
-  foreignKey: string;
-  /** Stable name for the relation. Defaults to the pluralised child path. */
-  name: string;
-  /** True when the edge is declared explicitly on the parent schema. */
-  declared: boolean;
-}
-
-export interface RelationEdge extends InverseRelation {
+export interface RelationEdge {
   kind: 'belongsTo' | 'hasMany' | 'hasOne';
+  /** Parent resource path that this edge lives on. */
+  source: string;
+  /** Other-end resource path. */
+  target: string;
+  /** FK field linking the two records. */
+  foreignKey: string;
+  /** Relation key from the manifest (or pluralised child path for legacy inverses). */
+  name: string;
+  /** True when the edge appears in the resource's own `relations` block. */
+  declared: boolean;
+  /** True when the backend marked this edge as a synthetic inverse of a sibling belongsTo. */
+  inverse?: boolean;
 }
 
 export interface ResolvedDisplay {
@@ -55,8 +54,6 @@ export class SchemaRegistry {
   readonly manifest: DescribeManifest;
   /** Indexed by short path (e.g. `account`) → full key (`v1/account`). */
   private readonly pathToKey = new Map<string, string>();
-  /** Inverse relations indexed by parent path → list of inferred hasMany edges. */
-  private readonly inverseRelations = new Map<string, RelationEdge[]>();
 
   constructor(manifest: DescribeManifest) {
     this.manifest = manifest;
@@ -66,7 +63,6 @@ export class SchemaRegistry {
       const tail = key.split('/').slice(-1)[0];
       if (tail) this.pathToKey.set(tail, key);
     }
-    this.buildInverseGraph();
   }
 
   /** All known resource short paths (e.g. ['account', 'contact', 'quote']). */
@@ -86,8 +82,10 @@ export class SchemaRegistry {
   }
 
   /**
-   * Compute display strings for a resource. Falls back gracefully when the
-   * backend manifest predates the M0.5 `label`/`pluralLabel`/`displayField` hints.
+   * Compute display strings for a resource. The hint trio
+   * (`entry.label`/`pluralLabel`/`displayField`) wins outright; fallbacks
+   * keep the UI sensible against backends that predate the M0.5 hints or
+   * schemas that simply don't bother to declare them.
    */
   display(pathOrKey: string): ResolvedDisplay {
     const entry = this.get(pathOrKey);
@@ -113,24 +111,19 @@ export class SchemaRegistry {
   }
 
   /**
-   * Declared and synthetic relations for a resource. Declared edges come
-   * straight from the schema's `relations` block; synthetic edges are
-   * inverses inferred from foreign-key declarations on sibling schemas.
+   * Declared relations for a resource, in manifest order. With davepi's
+   * M0.5 backend the parent's `relations` block already includes inverse
+   * `hasMany` edges synthesised from sibling `belongsTo` declarations
+   * (marked `inverse: true`), so this method covers both declared and
+   * inverse edges without the registry having to compute them.
    */
   relations(pathOrKey: string): RelationEdge[] {
     const entry = this.get(pathOrKey);
-    if (!entry) return [];
+    if (!entry || !entry.relations) return [];
+    const source = this.shortPath(entry);
     const out: RelationEdge[] = [];
-    if (entry.relations) {
-      for (const [name, def] of Object.entries(entry.relations)) {
-        out.push(this.declaredEdge(this.shortPath(entry), name, def));
-      }
-    }
-    const inverses = this.inverseRelations.get(this.shortPath(entry)) ?? [];
-    for (const edge of inverses) {
-      // Skip inverses that the schema already declares to avoid dupes.
-      if (out.some((e) => e.target === edge.target && e.foreignKey === edge.foreignKey)) continue;
-      out.push(edge);
+    for (const [name, def] of Object.entries(entry.relations)) {
+      out.push(this.toEdge(source, name, def));
     }
     return out;
   }
@@ -148,71 +141,28 @@ export class SchemaRegistry {
     return entry.path.replace(/^\/api\/[^/]+\//, '');
   }
 
-  private declaredEdge(source: string, name: string, def: DescribeRelation): RelationEdge {
-    const fk =
-      def.kind === 'belongsTo' ? def.localKey : def.foreignKey ?? `${source}Id`;
-    return {
+  private toEdge(source: string, name: string, def: DescribeRelation): RelationEdge {
+    if (def.kind === 'belongsTo') {
+      return {
+        kind: 'belongsTo',
+        name,
+        source,
+        target: def.target,
+        foreignKey: def.localKey,
+        declared: true,
+      };
+    }
+    const fk = def.foreignKey ?? `${source}Id`;
+    const edge: RelationEdge = {
       kind: def.kind,
       name,
       source,
       target: def.target,
       foreignKey: fk,
-      declared: true,
+      declared: !def.inverse,
     };
-  }
-
-  private buildInverseGraph(): void {
-    for (const entry of Object.values(this.manifest.schemas)) {
-      const childPath = this.shortPath(entry);
-      // Explicit `belongsTo` from relations block.
-      if (entry.relations) {
-        for (const [, def] of Object.entries(entry.relations)) {
-          if (def.kind !== 'belongsTo') continue;
-          this.recordInverse({
-            source: def.target,
-            target: childPath,
-            foreignKey: def.localKey,
-            name: pluralize(childPath),
-            declared: false,
-            kind: 'hasMany',
-          });
-        }
-      }
-      // FK-by-convention: any field with `reference` set, or named `${target}Id`.
-      for (const field of entry.fields) {
-        if (field.reference) {
-          this.recordInverse({
-            source: field.reference,
-            target: childPath,
-            foreignKey: field.name,
-            name: pluralize(childPath),
-            declared: false,
-            kind: 'hasMany',
-          });
-          continue;
-        }
-        if (field.name.endsWith('Id') && field.name.length > 2) {
-          const target = field.name.slice(0, -2);
-          if (this.pathToKey.has(target)) {
-            this.recordInverse({
-              source: target,
-              target: childPath,
-              foreignKey: field.name,
-              name: pluralize(childPath),
-              declared: false,
-              kind: 'hasMany',
-            });
-          }
-        }
-      }
-    }
-  }
-
-  private recordInverse(edge: RelationEdge): void {
-    const list = this.inverseRelations.get(edge.source) ?? [];
-    if (list.some((e) => e.target === edge.target && e.foreignKey === edge.foreignKey)) return;
-    list.push(edge);
-    this.inverseRelations.set(edge.source, list);
+    if (def.inverse) edge.inverse = true;
+    return edge;
   }
 
   private resolveDisplayField(
