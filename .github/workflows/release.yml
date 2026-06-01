@@ -26,11 +26,17 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # Note: deliberately no `registry-url:` here. When set,
+      # actions/setup-node@v4 writes a temp .npmrc that references
+      # `${NODE_AUTH_TOKEN}` — and if NODE_AUTH_TOKEN isn't injected
+      # too, the placeholder literal `XXXXX-XXXXX-...` lands in the
+      # .npmrc and shadows the one changesets/action writes from
+      # NPM_TOKEN. Letting changesets/action own the .npmrc fully
+      # avoids that conflict.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Install
         run: pnpm install --frozen-lockfile
