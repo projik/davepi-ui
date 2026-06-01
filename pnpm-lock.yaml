@@ -42,6 +42,8 @@ importers:
         specifier: ^0.33.5
         version: 0.33.5
 
+  packages/create-davepi-ui: {}
+
   packages/ui-app-react:
     dependencies:
       '@davepi/ui-core':

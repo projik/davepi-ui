@@ -7,3 +7,9 @@ storybook-static
 .DS_Store
 .env
 .env.local
+
+# create-davepi-ui templates are generated at publish time by
+# bin/sync-templates.js. They shouldn't live in git — would drift
+# silently from packages/ui-app-react and bloat diffs on every
+# template tweak.
+packages/create-davepi-ui/templates/
