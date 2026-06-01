@@ -1,13 +1,41 @@
 {
   "name": "@davepi/ui-mcp",
-  "version": "0.0.0",
-  "description": "MCP server exposing the davepi-ui component manifest, descriptor schemas, and live resource graph to AI agents",
+  "version": "0.1.0",
+  "description": "MCP server exposing the davepi-ui component manifest, JSON page descriptors, recipes, and live resource graph to AI agents. Pair with a davepi backend so Claude Code (or any MCP client) can compose admin pages programmatically.",
+  "keywords": [
+    "davepi",
+    "davepi-ui",
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "admin"
+  ],
+  "homepage": "https://github.com/projik/davepi-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/projik/davepi-ui.git",
+    "directory": "packages/ui-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/projik/davepi-ui/issues"
+  },
+  "license": "MIT",
+  "author": "David Baxter <dave@unlockedequity.com>",
   "type": "module",
   "main": "./dist/server.js",
   "bin": {
     "davepi-ui-mcp": "./dist/server.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -16,7 +44,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@davepi/ui-core": "workspace:*",
+    "@davepi/ui-core": "workspace:^",
     "@modelcontextprotocol/sdk": "^1.18.0",
     "zod": "^3.23.8"
   },

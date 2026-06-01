@@ -1,7 +1,27 @@
 {
   "name": "@davepi/ui-core",
-  "version": "0.0.0",
-  "description": "Framework-agnostic schema registry, widget resolver, and descriptors for davepi-ui",
+  "version": "0.1.0",
+  "description": "Framework-agnostic schema registry, widget resolver, and JSON descriptors for davepi-ui — the schema-driven, agent-first admin UI framework for davepi backends.",
+  "keywords": [
+    "davepi",
+    "davepi-ui",
+    "admin",
+    "schema-driven",
+    "zod",
+    "describe",
+    "agent-first"
+  ],
+  "homepage": "https://github.com/projik/davepi-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/projik/davepi-ui.git",
+    "directory": "packages/ui-core"
+  },
+  "bugs": {
+    "url": "https://github.com/projik/davepi-ui/issues"
+  },
+  "license": "MIT",
+  "author": "David Baxter <dave@unlockedequity.com>",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,7 +40,17 @@
       "import": "./dist/descriptor/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

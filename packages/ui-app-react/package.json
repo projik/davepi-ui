@@ -1,7 +1,8 @@
 {
   "name": "@davepi/ui-app-react",
   "version": "0.0.0",
-  "description": "Deployable Vite + React admin shell for davepi-ui",
+  "private": true,
+  "description": "Deployable Vite + React admin shell for davepi-ui (template — clone, don't install)",
   "type": "module",
   "scripts": {
     "dev": "vite",

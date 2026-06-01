@@ -1,7 +1,27 @@
 {
   "name": "@davepi/ui-react",
-  "version": "0.0.0",
-  "description": "React components, hooks, and AuthProvider for davepi-ui",
+  "version": "0.1.0",
+  "description": "React components, TanStack Query hooks, AuthProvider, ConfigProvider, and ACL hooks for davepi-ui — the schema-driven admin UI framework for davepi backends.",
+  "keywords": [
+    "davepi",
+    "davepi-ui",
+    "react",
+    "admin",
+    "tanstack-query",
+    "auth",
+    "schema-driven"
+  ],
+  "homepage": "https://github.com/projik/davepi-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/projik/davepi-ui.git",
+    "directory": "packages/ui-react"
+  },
+  "bugs": {
+    "url": "https://github.com/projik/davepi-ui/issues"
+  },
+  "license": "MIT",
+  "author": "David Baxter <dave@unlockedequity.com>",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -28,7 +48,17 @@
       "import": "./dist/acl/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -37,7 +67,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@davepi/ui-core": "workspace:*",
+    "@davepi/ui-core": "workspace:^",
     "@tanstack/react-query": "^5.62.7"
   },
   "peerDependencies": {
