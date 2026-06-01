@@ -1,5 +1,14 @@
 # @davepi/ui-mcp
 
+## 0.1.1
+
+### Patch Changes
+
+- [`6713df7`](https://github.com/projik/davepi-ui/commit/6713df7a730ed696111903ce969c3b48661bcda1) Thanks [@projik](https://github.com/projik)! - CI release pipeline smoke test — first publish through GitHub Actions after manual 0.1.0 claim.
+
+- Updated dependencies [[`6713df7`](https://github.com/projik/davepi-ui/commit/6713df7a730ed696111903ce969c3b48661bcda1)]:
+  - @davepi/ui-core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
