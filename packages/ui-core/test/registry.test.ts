@@ -41,6 +41,10 @@ describe('SchemaRegistry', () => {
     // (the parent didn't author it) plus the explicit `inverse: true` flag.
     expect(dealsEdge?.declared).toBe(false);
     expect(dealsEdge?.inverse).toBe(true);
+    // Backend marks synthetic inverses `callable: false` — they're
+    // discovery hints, not addressable via REST `__include` / MCP /
+    // GraphQL. Consumers (RelatedList) fetch via a foreign-key filter.
+    expect(dealsEdge?.callable).toBe(false);
   });
 
   it('does not synthesise an inverse for stamped tenant fields like contact.accountId', () => {

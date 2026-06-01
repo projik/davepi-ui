@@ -1,19 +1,17 @@
 import type { ResourceConfig } from '@davepi/ui-core';
 
 /**
- * Per-resource override for `contact`. Shows form sectioning + a
- * configured display field.
+ * Contact override. Form sections and explicit list columns are the
+ * UI-only bits — labels / pluralLabel / displayField come straight
+ * from the backend manifest.
  */
 const config: ResourceConfig = {
-  label: 'Contact',
-  pluralLabel: 'Contacts',
   category: 'CRM',
-  displayField: 'first_name',
   listColumns: [
-    { field: 'first_name', label: 'First name' },
-    { field: 'last_name', label: 'Last name' },
-    { field: 'email', label: 'Email' },
-    { field: 'phone', label: 'Phone' },
+    { field: 'first_name' },
+    { field: 'last_name' },
+    { field: 'email' },
+    { field: 'phone' },
   ],
   formSections: [
     {

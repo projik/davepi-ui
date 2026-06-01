@@ -40,6 +40,14 @@ export interface RelationEdge {
   declared: boolean;
   /** True when the backend marked this edge as a synthetic inverse of a sibling belongsTo. */
   inverse?: boolean;
+  /**
+   * False when the backend marked this edge as manifest-only — REST
+   * `__include` / MCP relation tools / GraphQL graph edges will reject
+   * it by name. Consumers should fetch via a regular list + foreign-key
+   * filter (which is what `<RelatedList>` already does). Default
+   * (absent or true) = callable.
+   */
+  callable?: boolean;
 }
 
 export interface ResolvedDisplay {
@@ -162,6 +170,7 @@ export class SchemaRegistry {
       declared: !def.inverse,
     };
     if (def.inverse) edge.inverse = true;
+    if (def.callable === false) edge.callable = false;
     return edge;
   }
 

@@ -32,9 +32,18 @@ export const manifest: DescribeManifest = {
         { name: 'description', type: 'String' },
         { name: 'website', type: 'String' },
       ],
-      // Backend M0.5 auto-populates the inverse from deal.belongsTo: account.
+      // Backend M0.5 auto-populates the inverse from deal.belongsTo:
+      // account, marked `callable: false` because the runtime relation
+      // map is per-schema and won't expose the edge to REST `__include`
+      // / MCP / GraphQL. Consumers fetch via `?accountId=<id>` filter.
       relations: {
-        deals: { kind: 'hasMany', target: 'deal', foreignKey: 'accountId', inverse: true },
+        deals: {
+          kind: 'hasMany',
+          target: 'deal',
+          foreignKey: 'accountId',
+          inverse: true,
+          callable: false,
+        },
       },
       features: { softDelete: true, audit: true, search: ['accountName'] },
       endpoints: {

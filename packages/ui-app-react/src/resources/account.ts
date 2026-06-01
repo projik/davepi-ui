@@ -1,18 +1,12 @@
 import type { ResourceConfig } from '@davepi/ui-core';
 
 /**
- * Per-resource override file for the `account` resource.
- *
- * Demonstrates the full override surface:
- *   - explicit list columns (with a labelled `description` column)
- *   - sidebar category grouping
- *   - bulk-delete action via the `__delete__`/`bulkDelete` built-in
+ * Account override. Backend (`/_describe`) supplies label / pluralLabel
+ * / displayField, so this file only carries the bits the backend can't
+ * know about: sidebar category, table columns, bulk actions.
  */
 const config: ResourceConfig = {
-  label: 'Account',
-  pluralLabel: 'Accounts',
   category: 'CRM',
-  displayField: 'accountName',
   listColumns: [
     { field: 'accountName', label: 'Account name' },
     { field: 'description', label: 'Notes' },

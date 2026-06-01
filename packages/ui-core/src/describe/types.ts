@@ -65,6 +65,15 @@ export type DescribeRelation =
       where?: Record<string, unknown>;
       /** True when the backend synthesised this from a sibling `belongsTo`. */
       inverse?: boolean;
+      /**
+       * False when this edge is manifest-only — the parent's per-schema
+       * runtime relation map doesn't know about it, so REST `__include`,
+       * MCP relation tools, and GraphQL graph edges will reject the
+       * relation by name. Consumers should fetch the children with a
+       * regular list + filter on `foreignKey` instead. Default (absent
+       * or true) = callable through every surface.
+       */
+      callable?: boolean;
     }
   | {
       kind: 'hasOne';
@@ -72,6 +81,7 @@ export type DescribeRelation =
       foreignKey?: string;
       where?: Record<string, unknown>;
       inverse?: boolean;
+      callable?: boolean;
     };
 
 export interface DescribeAcl {
