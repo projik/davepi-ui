@@ -38,6 +38,27 @@ jobs:
       - name: Build
         run: pnpm -r build
 
+      # Diagnostic: confirm the NPM_TOKEN secret resolves to a token
+      # npm actually accepts, before changesets/action burns time
+      # building tarballs. Prints token length + first/last 4 chars +
+      # whoami response — never the full secret. If whoami doesn't say
+      # `davepi`, the secret value is wrong; fix before debugging
+      # anything downstream.
+      - name: Verify NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM_TOKEN is empty"; exit 1
+          fi
+          len=${#NPM_TOKEN}
+          first4=${NPM_TOKEN:0:4}
+          last4=${NPM_TOKEN: -4}
+          echo "token len=$len first4=$first4 last4=$last4"
+          echo "whoami response:"
+          curl -sS -H "Authorization: Bearer $NPM_TOKEN" https://registry.npmjs.org/-/whoami
+          echo
+
       # Either opens a "Version Packages" PR collecting all queued
       # changesets, OR (when that PR has been merged and version bumps
       # are in main) publishes the bumped packages to npm + tags the
