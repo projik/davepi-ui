@@ -1,6 +1,6 @@
 {
   "name": "create-davepi-ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scaffolder for new davepi-ui projects. Run: npx create-davepi-ui <name> [--api-url <url>]",
   "license": "MIT",
   "author": "David Baxter <dave@unlockedequity.com>",
