@@ -51,9 +51,24 @@ export function ResourceDetailPage() {
 
   const preview = describe.registry.preview(path, record.data);
   const visibleFields = entry.fields.filter((f) => !SERVER_STAMPED.has(f.name));
-  const childRelations = describe.registry
+  // Suppress redundant `hasOne` tabs: when a parent declares both
+  // `hasMany: contact` and `hasOne: contact` against the same FK
+  // (e.g. `primaryContact` for "the one flagged as primary"), the
+  // hasMany tab already lists every contact including the primary —
+  // a separate Primary Contact tab is UX clutter, not information.
+  // Skip the hasOne when an equivalent hasMany exists; the user can
+  // sort / filter the main list to find the primary.
+  const allChildRelations = describe.registry
     .relations(path)
     .filter((r) => r.kind === 'hasMany' || r.kind === 'hasOne');
+  const hasManyKeys = new Set(
+    allChildRelations
+      .filter((r) => r.kind === 'hasMany')
+      .map((r) => `${r.target}:${r.foreignKey}`)
+  );
+  const childRelations = allChildRelations.filter(
+    (r) => r.kind !== 'hasOne' || !hasManyKeys.has(`${r.target}:${r.foreignKey}`)
+  );
 
   const detailsBlock = (
     <section className="rounded-md border border-border bg-card">
@@ -104,10 +119,20 @@ export function ResourceDetailPage() {
             <TabsTrigger value="details">Details</TabsTrigger>
             {childRelations.map((rel) => {
               const target = describe.registry.display(rel.target);
-              const key = `${rel.target}:${rel.foreignKey}`;
+              // Include `rel.name` in the key — without it, a parent
+              // that declares both `contacts: hasMany` and
+              // `primaryContact: hasOne` on the same target/FK pair
+              // would collide on a `target:foreignKey`-only key.
+              // The label uses the relation name (humanised) instead
+              // of the bare target plural so the tabs read distinctly.
+              const key = `${rel.name}:${rel.target}:${rel.foreignKey}`;
+              const tabLabel =
+                rel.kind === 'hasOne'
+                  ? labelize(rel.name)
+                  : target.pluralLabel;
               return (
                 <TabsTrigger key={key} value={key}>
-                  {target.pluralLabel}
+                  {tabLabel}
                 </TabsTrigger>
               );
             })}
@@ -116,7 +141,7 @@ export function ResourceDetailPage() {
             {detailsBlock}
           </TabsContent>
           {childRelations.map((rel) => {
-            const key = `${rel.target}:${rel.foreignKey}`;
+            const key = `${rel.name}:${rel.target}:${rel.foreignKey}`;
             return (
               <TabsContent key={key} value={key} className="mt-4">
                 <RelatedList

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { UserMenu } from '@davepi/ui-react';
 import { Sidebar } from './Sidebar';
+import { ThemeToggle } from './ThemeToggle';
 
 /**
  * Two-column shell: sidebar nav (resource list from describe) + main outlet.
@@ -12,6 +13,7 @@ export function AppShell() {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 items-center justify-end gap-3 border-b border-border px-6">
+          <ThemeToggle />
           <UserMenu className="flex items-center gap-3 text-sm" />
         </header>
         <main className="flex-1 overflow-auto p-6">

@@ -1,10 +1,26 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>davepi-ui</title>
+    <script>
+      // FOUC guard: read theme preference + apply class before paint
+      // so the very first frame already matches the user's choice.
+      // Lookup order: explicit localStorage choice → system preference.
+      // Values: 'light' | 'dark' | 'system' (default).
+      (function () {
+        try {
+          var pref = localStorage.getItem('davepi-theme') || 'system';
+          var prefersDark =
+            pref === 'dark' ||
+            (pref === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', prefersDark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-background text-foreground">
     <div id="root"></div>
