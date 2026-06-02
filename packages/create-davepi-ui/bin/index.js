@@ -9,7 +9,7 @@
  *   - rewrites `package.json` with the new project name + pinned
  *     published versions of @davepi/ui-* (no workspace: protocol)
  *   - writes `.env` carrying VITE_API_URL
- *   - runs `pnpm install` (skip with --no-install)
+ *   - runs `npm install` (skip with --no-install)
  *   - prints the next three commands
  *
  * No `inquirer`, no progress bars — keeps the failure surface small.
@@ -58,7 +58,7 @@ function usage() {
   out('');
   out('Flags:');
   out('  --api-url <url>   davepi backend base URL (default: http://localhost:4001)');
-  out('  --no-install      skip the post-scaffold `pnpm install`');
+  out('  --no-install      skip the post-scaffold `npm install`');
 }
 
 function copyTree(src, dst, skip) {
@@ -198,16 +198,18 @@ function main() {
     rewritePackageJson(pkgPath, name, resolvePinnedVersions());
   }
 
-  // Write a starter `.env` so the user can run `pnpm dev` immediately.
+  // Write a starter `.env` so the user can run `npm run dev` immediately.
   fs.writeFileSync(path.join(target, '.env'), `VITE_API_URL=${apiUrl}\n`);
 
   if (!skipInstall) {
     out('Installing dependencies…');
     // spawnSync with an argument array — no shell, no interpolation,
-    // so the only program ever invoked is the literal `pnpm`.
-    const r = spawnSync('pnpm', ['install'], { cwd: target, stdio: 'inherit' });
+    // so the only program ever invoked is the literal `npm`. npm ships
+    // as `.cmd` shim on Windows, hence the platform-specific name.
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const r = spawnSync(npmCmd, ['install'], { cwd: target, stdio: 'inherit' });
     if (r.status !== 0) {
-      err('pnpm install failed. You can re-run it from the project directory.');
+      err('npm install failed. You can re-run it from the project directory.');
     }
   }
 
@@ -215,8 +217,8 @@ function main() {
   out('Done.');
   out('');
   out(`  cd ${name}`);
-  if (skipInstall) out('  pnpm install');
-  out('  pnpm dev');
+  if (skipInstall) out('  npm install');
+  out('  npm run dev');
   out('');
   out(`Backend expected at ${apiUrl}. Edit .env to point elsewhere.`);
 }

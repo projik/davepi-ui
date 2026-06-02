@@ -45,6 +45,14 @@ const SKIP = new Set([
   '.astro',
   '.env',
   '.env.local',
+  // Skip lock files — davepi-ui itself uses pnpm because it's a
+  // monorepo, but the scaffolded admin is a plain Vite app that uses
+  // npm. Keeps the package-manager surface aligned with the davepi
+  // backend the user already runs via `npm install`. The scaffolded
+  // `npm install` writes a fresh package-lock.json.
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'package-lock.json',
 ]);
 
 function copyTree(src, dst) {
