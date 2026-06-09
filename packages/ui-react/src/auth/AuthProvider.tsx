@@ -24,10 +24,32 @@ import { createDavepiClient, type DavepiClient, DavepiError } from '../client.js
  * without a separate `/me` round-trip. Refresh tokens rotate; the new pair
  * comes back on every refresh response and is stamped over the prior one.
  *
+ * `login`/`register` are the credential-based entry points, but the provider
+ * is token-source agnostic: any flow that obtains a davepi access +
+ * refresh token out of band — most notably an OAuth redirect that lands the
+ * pair in query params — can hand them over with {@link AuthContextValue.setSession}.
+ * The tokens then flow through the exact same path as a password login, so
+ * `status` flips to `'authenticated'`, the refresh token is persisted under
+ * the canonical key, and every data hook unblocks. No second storage key,
+ * no parallel refresh loop, no OAuth-specific hooks required.
+ *
  * @example
  * <AuthProvider baseUrl="http://localhost:4001">
  *   <App />
  * </AuthProvider>
+ *
+ * @example
+ * // OAuth callback page (?token=…&refreshToken=…)
+ * const { setSession } = useAuth();
+ * useEffect(() => {
+ *   const p = new URLSearchParams(window.location.search);
+ *   const accessToken = p.get('token');
+ *   const refreshToken = p.get('refreshToken');
+ *   if (accessToken && refreshToken) {
+ *     setSession({ accessToken, refreshToken });
+ *     navigate('/', { replace: true });
+ *   }
+ * }, []);
  */
 
 const REFRESH_STORAGE_KEY = 'davepi.refreshToken';
@@ -48,6 +70,21 @@ export interface AuthContextValue {
   login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
   register(input: RegisterInput): Promise<void>;
+  /**
+   * Adopt an access + refresh token pair obtained outside the password
+   * flow — e.g. the `?token=…&refreshToken=…` an OAuth provider lands on the
+   * callback URL. Runs through the same path as `login`: decodes the JWT,
+   * flips `status` to `'authenticated'`, persists the refresh token under the
+   * canonical key (so reloads and the 401 interceptor refresh normally), and
+   * unblocks every data hook. Synchronous — no network round-trip.
+   */
+  setSession(tokens: SessionTokens): void;
+}
+
+/** A davepi access + refresh token pair, as returned by login or OAuth. */
+export interface SessionTokens {
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface RegisterInput {
@@ -68,11 +105,6 @@ export interface AuthProviderProps {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
 
 interface LoginResponse {
   accessToken: string;
@@ -98,7 +130,7 @@ export function AuthProvider({
   );
 
   const applyTokens = useCallback(
-    (tokens: TokenPair | null) => {
+    (tokens: SessionTokens | null) => {
       if (tokens) {
         accessRef.current = tokens.accessToken;
         setAccessToken(tokens.accessToken);
@@ -167,7 +199,12 @@ export function AuthProvider({
         return;
       }
       await performRefresh();
-      if (!cancelled && status === 'unknown') setStatus('unauthenticated');
+      // performRefresh has already settled status to authenticated/unauthenticated.
+      // Only fall back to unauthenticated if it somehow left us in 'unknown'.
+      // Use the functional form: reading `status` from this closure would be
+      // stale ('unknown' from first render) and would clobber a successful
+      // refresh back to unauthenticated — logging the user out on every reload.
+      if (!cancelled) setStatus((prev) => (prev === 'unknown' ? 'unauthenticated' : prev));
     })();
     return () => {
       cancelled = true;
@@ -202,6 +239,13 @@ export function AuthProvider({
     [applyTokens, client]
   );
 
+  const setSession = useCallback(
+    (tokens: SessionTokens) => {
+      applyTokens(tokens);
+    },
+    [applyTokens]
+  );
+
   const logout = useCallback(async () => {
     const refreshToken = store?.getItem(REFRESH_STORAGE_KEY);
     if (refreshToken) {
@@ -220,8 +264,8 @@ export function AuthProvider({
   }, [applyTokens, client, store]);
 
   const value: AuthContextValue = useMemo(
-    () => ({ client, baseUrl, accessToken, user, status, login, logout, register }),
-    [accessToken, baseUrl, client, login, logout, register, status, user]
+    () => ({ client, baseUrl, accessToken, user, status, login, logout, register, setSession }),
+    [accessToken, baseUrl, client, login, logout, register, setSession, status, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
