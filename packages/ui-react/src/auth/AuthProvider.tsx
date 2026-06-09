@@ -120,6 +120,12 @@ export function AuthProvider({
 }: AuthProviderProps): ReactElement {
   const accessRef = useRef<string | null>(null);
   const refreshingRef = useRef<Promise<string | undefined> | null>(null);
+  // Bumped whenever a session is authoritatively adopted/cleared (login,
+  // register, setSession, logout). An in-flight performRefresh captures the
+  // epoch at start and refuses to commit its result if the epoch moved — so a
+  // stale mount/401 refresh can't overwrite or null out a newer session (e.g.
+  // tokens just adopted from an OAuth callback).
+  const sessionEpochRef = useRef(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthContextValue['status']>('unknown');
@@ -148,6 +154,16 @@ export function AuthProvider({
     [store]
   );
 
+  // Authoritatively adopt (or clear, with null) a session. Bumps the epoch so a
+  // refresh already in flight cannot clobber this decision when it settles.
+  const commitSession = useCallback(
+    (tokens: SessionTokens | null) => {
+      sessionEpochRef.current += 1;
+      applyTokens(tokens);
+    },
+    [applyTokens]
+  );
+
   const performRefresh = useCallback(async (): Promise<string | undefined> => {
     if (refreshingRef.current) return refreshingRef.current;
     const refreshToken = store?.getItem(REFRESH_STORAGE_KEY);
@@ -155,6 +171,10 @@ export function AuthProvider({
       applyTokens(null);
       return undefined;
     }
+    // Snapshot the session epoch; if it moves while we're awaiting the network
+    // (a login/register/setSession/logout landed), this refresh is stale and
+    // must not commit — otherwise it could overwrite or log out the new session.
+    const epoch = sessionEpochRef.current;
     const promise = (async () => {
       try {
         const res = await (fetchImpl ?? globalThis.fetch)(`${baseUrl}/auth/refresh`, {
@@ -164,11 +184,12 @@ export function AuthProvider({
         });
         if (!res.ok) throw new Error(`refresh failed: ${res.status}`);
         const next = (await res.json()) as LoginResponse;
+        if (sessionEpochRef.current !== epoch) return accessRef.current ?? undefined;
         applyTokens({ accessToken: next.accessToken, refreshToken: next.refreshToken });
         return next.accessToken;
       } catch {
-        applyTokens(null);
-        return undefined;
+        if (sessionEpochRef.current === epoch) applyTokens(null);
+        return accessRef.current ?? undefined;
       } finally {
         refreshingRef.current = null;
       }
@@ -221,9 +242,9 @@ export function AuthProvider({
         body: { email, password },
         skipRefresh: true,
       });
-      applyTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+      commitSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     },
-    [applyTokens, client]
+    [client, commitSession]
   );
 
   const register = useCallback(
@@ -234,16 +255,16 @@ export function AuthProvider({
         body: input,
         skipRefresh: true,
       });
-      applyTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+      commitSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     },
-    [applyTokens, client]
+    [client, commitSession]
   );
 
   const setSession = useCallback(
     (tokens: SessionTokens) => {
-      applyTokens(tokens);
+      commitSession(tokens);
     },
-    [applyTokens]
+    [commitSession]
   );
 
   const logout = useCallback(async () => {
@@ -260,8 +281,8 @@ export function AuthProvider({
         if (!(err instanceof DavepiError)) throw err;
       }
     }
-    applyTokens(null);
-  }, [applyTokens, client, store]);
+    commitSession(null);
+  }, [client, commitSession, store]);
 
   const value: AuthContextValue = useMemo(
     () => ({ client, baseUrl, accessToken, user, status, login, logout, register, setSession }),

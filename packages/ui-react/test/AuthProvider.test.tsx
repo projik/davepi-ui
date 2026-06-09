@@ -116,4 +116,46 @@ describe('AuthProvider', () => {
     expect(String(calls[0][0])).toBe('http://api.test/auth/refresh');
     expect(JSON.parse(String(calls[0][1]?.body))).toEqual({ refreshToken: 'oauth-refresh-1' });
   });
+
+  it('an in-flight refresh does not clobber a session adopted via setSession', async () => {
+    // A stale refresh token in storage means the mount effect kicks off
+    // performRefresh. We hold its response open, adopt an OAuth session via
+    // setSession, then let the stale refresh fail. Without the epoch guard the
+    // failure's applyTokens(null) would log the user out right after OAuth.
+    const storage = memoryStorage({ 'davepi.refreshToken': 'stale-refresh' });
+    let releaseRefresh!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const fetchImpl = vi.fn(async () => {
+      await gate;
+      return new Response(
+        JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'expired' } }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }) as unknown as typeof fetch;
+
+    renderProvider({ storage, fetch: fetchImpl });
+    // Mount refresh is in flight (awaiting the gate); status is still resolving.
+    await waitFor(() =>
+      expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1)
+    );
+
+    const oauthToken = makeJwt({ user_id: 'u_9', email: 'oauth@test.dev', roles: ['member'] });
+    act(() => {
+      captured.setSession({ accessToken: oauthToken, refreshToken: 'oauth-refresh' });
+    });
+    await waitFor(() => expect(statusText()).toBe('authenticated'));
+
+    // Let the stale refresh fail now that a newer session has been adopted.
+    await act(async () => {
+      releaseRefresh();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // The adopted session survives — not reverted, not logged out.
+    expect(statusText()).toBe('authenticated');
+    expect(captured.accessToken).toBe(oauthToken);
+    expect(storage.map.get('davepi.refreshToken')).toBe('oauth-refresh');
+  });
 });
