@@ -24,10 +24,32 @@ import { createDavepiClient, type DavepiClient, DavepiError } from '../client.js
  * without a separate `/me` round-trip. Refresh tokens rotate; the new pair
  * comes back on every refresh response and is stamped over the prior one.
  *
+ * `login`/`register` are the credential-based entry points, but the provider
+ * is token-source agnostic: any flow that obtains a davepi access +
+ * refresh token out of band — most notably an OAuth redirect that lands the
+ * pair in query params — can hand them over with {@link AuthContextValue.setSession}.
+ * The tokens then flow through the exact same path as a password login, so
+ * `status` flips to `'authenticated'`, the refresh token is persisted under
+ * the canonical key, and every data hook unblocks. No second storage key,
+ * no parallel refresh loop, no OAuth-specific hooks required.
+ *
  * @example
  * <AuthProvider baseUrl="http://localhost:4001">
  *   <App />
  * </AuthProvider>
+ *
+ * @example
+ * // OAuth callback page (?token=…&refreshToken=…)
+ * const { setSession } = useAuth();
+ * useEffect(() => {
+ *   const p = new URLSearchParams(window.location.search);
+ *   const accessToken = p.get('token');
+ *   const refreshToken = p.get('refreshToken');
+ *   if (accessToken && refreshToken) {
+ *     setSession({ accessToken, refreshToken });
+ *     navigate('/', { replace: true });
+ *   }
+ * }, []);
  */
 
 const REFRESH_STORAGE_KEY = 'davepi.refreshToken';
@@ -48,6 +70,21 @@ export interface AuthContextValue {
   login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
   register(input: RegisterInput): Promise<void>;
+  /**
+   * Adopt an access + refresh token pair obtained outside the password
+   * flow — e.g. the `?token=…&refreshToken=…` an OAuth provider lands on the
+   * callback URL. Runs through the same path as `login`: decodes the JWT,
+   * flips `status` to `'authenticated'`, persists the refresh token under the
+   * canonical key (so reloads and the 401 interceptor refresh normally), and
+   * unblocks every data hook. Synchronous — no network round-trip.
+   */
+  setSession(tokens: SessionTokens): void;
+}
+
+/** A davepi access + refresh token pair, as returned by login or OAuth. */
+export interface SessionTokens {
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface RegisterInput {
@@ -69,11 +106,6 @@ export interface AuthProviderProps {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
-
 interface LoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -88,6 +120,12 @@ export function AuthProvider({
 }: AuthProviderProps): ReactElement {
   const accessRef = useRef<string | null>(null);
   const refreshingRef = useRef<Promise<string | undefined> | null>(null);
+  // Bumped whenever a session is authoritatively adopted/cleared (login,
+  // register, setSession, logout). An in-flight performRefresh captures the
+  // epoch at start and refuses to commit its result if the epoch moved — so a
+  // stale mount/401 refresh can't overwrite or null out a newer session (e.g.
+  // tokens just adopted from an OAuth callback).
+  const sessionEpochRef = useRef(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthContextValue['status']>('unknown');
@@ -98,7 +136,7 @@ export function AuthProvider({
   );
 
   const applyTokens = useCallback(
-    (tokens: TokenPair | null) => {
+    (tokens: SessionTokens | null) => {
       if (tokens) {
         accessRef.current = tokens.accessToken;
         setAccessToken(tokens.accessToken);
@@ -116,6 +154,16 @@ export function AuthProvider({
     [store]
   );
 
+  // Authoritatively adopt (or clear, with null) a session. Bumps the epoch so a
+  // refresh already in flight cannot clobber this decision when it settles.
+  const commitSession = useCallback(
+    (tokens: SessionTokens | null) => {
+      sessionEpochRef.current += 1;
+      applyTokens(tokens);
+    },
+    [applyTokens]
+  );
+
   const performRefresh = useCallback(async (): Promise<string | undefined> => {
     if (refreshingRef.current) return refreshingRef.current;
     const refreshToken = store?.getItem(REFRESH_STORAGE_KEY);
@@ -123,6 +171,10 @@ export function AuthProvider({
       applyTokens(null);
       return undefined;
     }
+    // Snapshot the session epoch; if it moves while we're awaiting the network
+    // (a login/register/setSession/logout landed), this refresh is stale and
+    // must not commit — otherwise it could overwrite or log out the new session.
+    const epoch = sessionEpochRef.current;
     const promise = (async () => {
       try {
         const res = await (fetchImpl ?? globalThis.fetch)(`${baseUrl}/auth/refresh`, {
@@ -132,11 +184,12 @@ export function AuthProvider({
         });
         if (!res.ok) throw new Error(`refresh failed: ${res.status}`);
         const next = (await res.json()) as LoginResponse;
+        if (sessionEpochRef.current !== epoch) return accessRef.current ?? undefined;
         applyTokens({ accessToken: next.accessToken, refreshToken: next.refreshToken });
         return next.accessToken;
       } catch {
-        applyTokens(null);
-        return undefined;
+        if (sessionEpochRef.current === epoch) applyTokens(null);
+        return accessRef.current ?? undefined;
       } finally {
         refreshingRef.current = null;
       }
@@ -167,7 +220,12 @@ export function AuthProvider({
         return;
       }
       await performRefresh();
-      if (!cancelled && status === 'unknown') setStatus('unauthenticated');
+      // performRefresh has already settled status to authenticated/unauthenticated.
+      // Only fall back to unauthenticated if it somehow left us in 'unknown'.
+      // Use the functional form: reading `status` from this closure would be
+      // stale ('unknown' from first render) and would clobber a successful
+      // refresh back to unauthenticated — logging the user out on every reload.
+      if (!cancelled) setStatus((prev) => (prev === 'unknown' ? 'unauthenticated' : prev));
     })();
     return () => {
       cancelled = true;
@@ -184,9 +242,9 @@ export function AuthProvider({
         body: { email, password },
         skipRefresh: true,
       });
-      applyTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+      commitSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     },
-    [applyTokens, client]
+    [client, commitSession]
   );
 
   const register = useCallback(
@@ -197,9 +255,16 @@ export function AuthProvider({
         body: input,
         skipRefresh: true,
       });
-      applyTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+      commitSession({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     },
-    [applyTokens, client]
+    [client, commitSession]
+  );
+
+  const setSession = useCallback(
+    (tokens: SessionTokens) => {
+      commitSession(tokens);
+    },
+    [commitSession]
   );
 
   const logout = useCallback(async () => {
@@ -216,12 +281,12 @@ export function AuthProvider({
         if (!(err instanceof DavepiError)) throw err;
       }
     }
-    applyTokens(null);
-  }, [applyTokens, client, store]);
+    commitSession(null);
+  }, [client, commitSession, store]);
 
   const value: AuthContextValue = useMemo(
-    () => ({ client, baseUrl, accessToken, user, status, login, logout, register }),
-    [accessToken, baseUrl, client, login, logout, register, status, user]
+    () => ({ client, baseUrl, accessToken, user, status, login, logout, register, setSession }),
+    [accessToken, baseUrl, client, login, logout, register, setSession, status, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
