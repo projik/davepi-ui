@@ -1,6 +1,6 @@
 {
   "name": "@davepi/ui-mcp",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "MCP server exposing the davepi-ui component manifest, JSON page descriptors, recipes, and live resource graph to AI agents. Pair with a davepi backend so Claude Code (or any MCP client) can compose admin pages programmatically.",
   "keywords": [
     "davepi",
