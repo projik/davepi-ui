@@ -75,8 +75,8 @@ describe('SchemaRegistry', () => {
     const nonCallable = rels.filter((r) => r.callable === false);
     // The `deals` inverse edge is callable:false — it must NOT appear in UI tabs.
     expect(nonCallable.map((r) => r.name)).toContain('deals');
-    // After filtering, no callable:false edges should reach the UI.
-    expect(callable.every((r) => r.callable !== false)).toBe(true);
+    // After filtering, the callable list must not include the `deals` edge.
+    expect(callable.map((r) => r.name)).not.toContain('deals');
   });
 
   it('previews a record using displayField', () => {

@@ -25,11 +25,12 @@ const SERVER_STAMPED = new Set(['__v', 'userId', 'accountId']);
  * Schema-driven detail page.
  *
  * Renders fields in describe order with type-aware formatting and ships
- * Edit + Delete actions. Every child relation (declared `hasMany`/`hasOne`
- * plus inverse edges synthesised by `SchemaRegistry`) becomes either an
- * embedded `<RelatedList>` (single relation) or a tab (multiple
- * relations) so users can browse and inline-create children without
- * leaving the parent page.
+ * Edit + Delete actions. Child relations that are `hasMany`/`hasOne` and
+ * callable (i.e. `callable !== false`) become either an embedded
+ * `<RelatedList>` (single relation) or a tab (multiple relations) so
+ * users can browse and inline-create children without leaving the parent
+ * page. Relations marked `callable: false` are manifest-only inverse
+ * edges and are excluded from the tab list.
  */
 export function ResourceDetailPage() {
   const params = useParams<{ path: string; id: string }>();
