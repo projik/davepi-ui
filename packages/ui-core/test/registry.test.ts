@@ -69,6 +69,16 @@ describe('SchemaRegistry', () => {
     expect(registry.relations('contact')).toEqual([]);
   });
 
+  it('exposes callable:false on edges so consumers can filter them from UI tabs', () => {
+    const rels = registry.relations('account');
+    const callable = rels.filter((r) => r.callable !== false);
+    const nonCallable = rels.filter((r) => r.callable === false);
+    // The `deals` inverse edge is callable:false — it must NOT appear in UI tabs.
+    expect(nonCallable.map((r) => r.name)).toContain('deals');
+    // After filtering, the callable list must not include the `deals` edge.
+    expect(callable.map((r) => r.name)).not.toContain('deals');
+  });
+
   it('previews a record using displayField', () => {
     expect(registry.preview('account', { accountName: 'Acme' })).toBe('Acme');
     expect(registry.preview('account', { _id: 'abc123' })).toBe('abc123');
