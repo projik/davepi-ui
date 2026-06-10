@@ -60,7 +60,7 @@ export function ResourceDetailPage() {
   // sort / filter the main list to find the primary.
   const allChildRelations = describe.registry
     .relations(path)
-    .filter((r) => r.kind === 'hasMany' || r.kind === 'hasOne');
+    .filter((r) => (r.kind === 'hasMany' || r.kind === 'hasOne') && r.callable !== false);
   const hasManyKeys = new Set(
     allChildRelations
       .filter((r) => r.kind === 'hasMany')
