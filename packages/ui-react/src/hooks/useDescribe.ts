@@ -1,6 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { fetchDescribe, SchemaRegistry, type DescribeManifest } from '@davepi/ui-core';
-import { useAuth } from '../auth/AuthProvider.js';
+import { useOptionalAuth } from '../auth/AuthProvider.js';
+import { useDescribeOverride } from './DescribeProvider.js';
 
 /**
  * Fetch and cache `/_describe` for the lifetime of the session.
@@ -13,6 +14,11 @@ import { useAuth } from '../auth/AuthProvider.js';
  *
  * Returns both the raw manifest and a memoised `SchemaRegistry` (the
  * widget resolver / label generator / relation graph consume the latter).
+ *
+ * When an ancestor `<DescribeProvider manifest={…}>` has injected a manifest
+ * (e.g. one fetched through a custom OAuth data layer), that takes
+ * precedence and no network fetch happens — so schema-driven widgets like
+ * `RelationPicker` work no matter how the app sourced the manifest.
  *
  * @example
  * const { data, isPending } = useDescribe();
@@ -29,17 +35,25 @@ function toData(manifest: DescribeManifest): UseDescribeData {
 }
 
 export function useDescribe(): UseQueryResult<UseDescribeData> {
-  const { baseUrl, client, status } = useAuth();
-  return useQuery({
-    queryKey: ['davepi', 'describe', baseUrl],
-    enabled: status === 'authenticated',
+  const override = useDescribeOverride();
+  const auth = useOptionalAuth();
+  if (!auth && !override) {
+    throw new Error('useDescribe must be used inside <AuthProvider> or <DescribeProvider>');
+  }
+  const query = useQuery({
+    queryKey: ['davepi', 'describe', auth?.baseUrl ?? '__no-auth__'],
+    enabled: !override && auth?.status === 'authenticated',
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    queryFn: () => client.fetchJson<DescribeManifest>('/_describe'),
+    queryFn: () => {
+      if (!auth) throw new Error('useDescribe: no AuthProvider client available');
+      return auth.client.fetchJson<DescribeManifest>('/_describe');
+    },
     select: toData,
   });
+  return override ?? query;
 }
 
 /**
@@ -49,13 +63,22 @@ export function useDescribe(): UseQueryResult<UseDescribeData> {
  * returns an error.
  */
 export function useAnonymousDescribe(): UseQueryResult<UseDescribeData> {
-  const { baseUrl } = useAuth();
-  return useQuery({
-    queryKey: ['davepi', 'describe-anon', baseUrl],
+  const override = useDescribeOverride();
+  const auth = useOptionalAuth();
+  if (!auth && !override) {
+    throw new Error(
+      'useAnonymousDescribe must be used inside <AuthProvider> or <DescribeProvider>'
+    );
+  }
+  const baseUrl = auth?.baseUrl;
+  const query = useQuery({
+    queryKey: ['davepi', 'describe-anon', baseUrl ?? '__no-auth__'],
+    enabled: !override && !!baseUrl,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
-    queryFn: () => fetchDescribe({ baseUrl }),
+    queryFn: () => fetchDescribe({ baseUrl: baseUrl! }),
     select: toData,
   });
+  return override ?? query;
 }

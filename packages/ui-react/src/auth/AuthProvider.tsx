@@ -298,6 +298,15 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+/**
+ * Like {@link useAuth} but returns `null` instead of throwing when no
+ * `<AuthProvider>` is mounted. For hooks that can run on an alternative
+ * data source (e.g. `useDescribe` under a `<DescribeProvider>`).
+ */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext);
+}
+
 function decodeJwt(token: string): AuthUser | null {
   const segments = token.split('.');
   if (segments.length < 2) return null;
