@@ -1,6 +1,6 @@
 {
   "name": "@davepi/ui-react",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "React components, TanStack Query hooks, AuthProvider, ConfigProvider, and ACL hooks for davepi-ui — the schema-driven admin UI framework for davepi backends.",
   "keywords": [
     "davepi",

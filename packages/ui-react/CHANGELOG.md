@@ -1,5 +1,11 @@
 # @davepi/ui-react
 
+## 0.4.0
+
+### Minor Changes
+
+- [#13](https://github.com/projik/davepi-ui/pull/13) [`e54df6f`](https://github.com/projik/davepi-ui/commit/e54df6f2ba5994711212c0bbc4d4eb39f5914ea5) Thanks [@devin-ai-integration](https://github.com/apps/devin-ai-integration)! - Add `DescribeProvider` so apps can inject an already-fetched `/_describe` manifest. `useDescribe()` / `useAnonymousDescribe()` now resolve the injected manifest first, falling back to the standard auth-gated query — fixing "Unknown relation target" in `RelationPicker` / `MultiRelationPicker` when the manifest is sourced outside the standard auth flow (e.g. a custom OAuth data layer). Also exports `useOptionalAuth()`.
+
 ## 0.3.0
 
 ### Minor Changes
