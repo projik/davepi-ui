@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `npx create-davepi-ui <name> [--api-url <url>] [--no-install]`
+ * `npx create-davepi-ui <name> [--api-url <url>] [--no-install] [--auth oauth]`
  *
  * Scaffolds a new davepi-ui admin project against a running davepi
  * backend:
@@ -10,10 +10,8 @@
  *     published versions of @davepi/ui-* (no workspace: protocol)
  *   - writes `.env` carrying VITE_API_URL
  *   - runs `npm install` (skip with --no-install)
+ *   - optionally configures OAuth via --auth oauth (interactive prompts)
  *   - prints the next three commands
- *
- * No `inquirer`, no progress bars — keeps the failure surface small.
- * Match davepi's own `create-davepi-app` posture.
  */
 
 'use strict';
@@ -21,6 +19,16 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+
+// inquirer is dynamically imported when --auth oauth is used
+/** @type {import('inquirer') | null} */
+let inquirer = null;
+async function getInquirer() {
+  if (!inquirer) {
+    inquirer = await import('inquirer');
+  }
+  return inquirer.default || inquirer;
+}
 
 const DEFAULT_API_URL = 'http://localhost:4001';
 
@@ -54,11 +62,12 @@ function flag(args, name) {
 }
 
 function usage() {
-  out('Usage: npx create-davepi-ui <name> [--api-url <url>] [--no-install]');
+  out('Usage: npx create-davepi-ui <name> [--api-url <url>] [--no-install] [--auth oauth]');
   out('');
   out('Flags:');
   out('  --api-url <url>   davepi backend base URL (default: http://localhost:4001)');
   out('  --no-install      skip the post-scaffold `npm install`');
+  out('  --auth oauth      enable OAuth authentication (interactive prompts for providers)');
 }
 
 function copyTree(src, dst, skip) {
@@ -153,7 +162,86 @@ function rewritePackageJson(file, projectName, pins) {
   fs.writeFileSync(file, JSON.stringify(raw, null, 2) + '\n');
 }
 
-function main() {
+/**
+ * Prompt the user for OAuth configuration when --auth oauth is passed.
+ *
+ * @returns {Promise<{mode: string, providers: string[]}>}
+ */
+async function promptOAuthConfig() {
+  const iq = await getInquirer();
+
+  const { mode } = await iq.prompt([
+    {
+      type: 'list',
+      name: 'mode',
+      message: 'Which authentication mode do you want?',
+      choices: [
+        { name: 'OAuth only (no email/password)', value: 'oauth-only' },
+        { name: 'OAuth + email/password (combined)', value: 'combined' },
+      ],
+      default: 'combined',
+    },
+  ]);
+
+  const { providers } = await iq.prompt([
+    {
+      type: 'checkbox',
+      name: 'providers',
+      message: 'Select OAuth providers (space to select, enter to confirm):',
+      choices: [
+        { name: 'Google', value: 'google' },
+        { name: 'GitHub', value: 'github' },
+        { name: 'Microsoft', value: 'microsoft' },
+        { name: 'Discord', value: 'discord' },
+      ],
+      validate: (input) => input.length > 0 || 'Select at least one provider',
+    },
+  ]);
+
+  return { mode, providers };
+}
+
+/**
+ * Write the auth.config.ts file with the selected configuration.
+ * Generates the full file content deterministically (no placeholders).
+ *
+ * @param {string} targetDir - The target project directory
+ * @param {{mode: string, providers: string[]}} config - OAuth configuration
+ */
+function writeAuthConfig(targetDir, config) {
+  const authConfigPath = path.join(targetDir, 'src', 'auth.config.ts');
+
+  const content = `// Authentication configuration for this application.
+// This file is overwritten by create-davepi-ui when using --auth oauth
+
+export type AuthMode = 'oauth-only' | 'combined' | 'email-only';
+export type OAuthProvider = 'google' | 'github' | 'microsoft' | 'discord';
+
+export interface AuthConfig {
+  mode: AuthMode;
+  oauthProviders: OAuthProvider[];
+}
+
+/**
+ * Authentication configuration for this application.
+ *
+ * - mode: '${config.mode}' - email-only | combined (email + OAuth) | oauth-only
+ * - oauthProviders: Array of enabled OAuth providers
+ *
+ * This config is used by LoginScreen to conditionally render
+ * email/password form and OAuth provider buttons.
+ */
+export const authConfig: AuthConfig = {
+  mode: '${config.mode}',
+  oauthProviders: ${JSON.stringify(config.providers)},
+};
+`;
+
+  fs.writeFileSync(authConfigPath, content);
+  out(`Configured OAuth: ${config.mode} mode with ${config.providers.join(', ')}`);
+}
+
+async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
     usage();
@@ -172,11 +260,24 @@ function main() {
     process.exit(1);
   }
 
-  let apiUrl, skipInstall;
+  let apiUrl, skipInstall, authFlag, oauthConfig;
   try {
     const a = flag(args, '--api-url');
     apiUrl = typeof a === 'string' ? a : DEFAULT_API_URL;
     skipInstall = flag(args, '--no-install') === true;
+    const auth = flag(args, '--auth');
+    authFlag = typeof auth === 'string' ? auth : null;
+
+    if (authFlag && authFlag !== 'oauth') {
+      err(`Invalid --auth value: "${authFlag}". Only "oauth" is supported.`);
+      usage();
+      process.exit(1);
+    }
+
+    // Prompt for OAuth configuration if --auth oauth is passed
+    if (authFlag === 'oauth') {
+      oauthConfig = await promptOAuthConfig();
+    }
   } catch (e) {
     err(e.message);
     if (e.usage) usage();
@@ -196,6 +297,14 @@ function main() {
   const pkgPath = path.join(target, 'package.json');
   if (fs.existsSync(pkgPath)) {
     rewritePackageJson(pkgPath, name, resolvePinnedVersions());
+  }
+
+  // Write auth.config.ts with OAuth configuration or defaults
+  if (oauthConfig) {
+    writeAuthConfig(target, oauthConfig);
+  } else {
+    // Default to email-only mode when --auth is not specified
+    writeAuthConfig(target, { mode: 'email-only', providers: [] });
   }
 
   // Write a starter `.env` so the user can run `npm run dev` immediately.
@@ -223,9 +332,7 @@ function main() {
   out(`Backend expected at ${apiUrl}. Edit .env to point elsewhere.`);
 }
 
-try {
-  main();
-} catch (e) {
+main().catch((e) => {
   err(e.stack || e.message);
   process.exit(1);
-}
+});

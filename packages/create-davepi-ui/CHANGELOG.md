@@ -1,5 +1,18 @@
 # create-davepi-ui
 
+## 0.4.0
+
+### Minor Changes
+
+- Add OAuth authentication support via `--auth oauth` flag
+
+  - New `--auth oauth` CLI flag enables interactive OAuth setup
+  - Prompts for auth mode: OAuth-only or OAuth + email/password
+  - Multi-select OAuth providers: Google, GitHub, Microsoft, Discord
+  - Generates `auth.config.ts` with selected configuration
+  - Updates `LoginScreen` with conditional OAuth provider buttons
+  - Includes `OAuthCallback` route for handling OAuth redirects
+
 ## 0.3.0
 
 ### Minor Changes
