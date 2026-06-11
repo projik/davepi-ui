@@ -11,6 +11,7 @@ export default defineConfig({
         { label: 'Start here', items: [
           { label: 'Why davepi-ui', slug: 'index' },
           { label: 'Getting started', slug: 'start/getting-started' },
+          { label: 'OAuth authentication', slug: 'start/oauth' },
         ]},
         { label: 'Concepts', items: [
           { label: 'Schema-driven model', slug: 'concepts/schema-driven' },
