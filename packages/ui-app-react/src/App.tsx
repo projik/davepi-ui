@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthGuard, useAuth } from '@davepi/ui-react';
 import { AppShell } from './components/AppShell';
 import { LoginScreen } from './pages/LoginScreen';
+import { OAuthCallback } from './pages/OAuthCallback';
 import { DashboardPage } from './pages/DashboardPage';
 import { ResourceListPage } from './pages/ResourceListPage';
 import { ResourceCreatePage } from './pages/ResourceCreatePage';
@@ -22,6 +23,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
+      <Route path="/auth/callback" element={<OAuthCallback />} />
       <Route
         path="/"
         element={

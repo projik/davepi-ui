@@ -203,22 +203,39 @@ async function promptOAuthConfig() {
 
 /**
  * Write the auth.config.ts file with the selected configuration.
+ * Generates the full file content deterministically (no placeholders).
  *
  * @param {string} targetDir - The target project directory
  * @param {{mode: string, providers: string[]}} config - OAuth configuration
  */
 function writeAuthConfig(targetDir, config) {
   const authConfigPath = path.join(targetDir, 'src', 'auth.config.ts');
-  if (!fs.existsSync(authConfigPath)) {
-    err('Warning: auth.config.ts template not found, skipping OAuth configuration.');
-    return;
-  }
 
-  let content = fs.readFileSync(authConfigPath, 'utf8');
+  const content = `// Authentication configuration for this application.
+// This file is overwritten by create-davepi-ui when using --auth oauth
 
-  // Replace placeholders with actual values
-  content = content.replace(/'{{AUTH_MODE}}'/g, `'${config.mode}'`);
-  content = content.replace(/\{\{OAUTH_PROVIDERS\}\}/g, JSON.stringify(config.providers));
+export type AuthMode = 'oauth-only' | 'combined' | 'email-only';
+export type OAuthProvider = 'google' | 'github' | 'microsoft' | 'discord';
+
+export interface AuthConfig {
+  mode: AuthMode;
+  oauthProviders: OAuthProvider[];
+}
+
+/**
+ * Authentication configuration for this application.
+ *
+ * - mode: '${config.mode}' - email-only | combined (email + OAuth) | oauth-only
+ * - oauthProviders: Array of enabled OAuth providers
+ *
+ * This config is used by LoginScreen to conditionally render
+ * email/password form and OAuth provider buttons.
+ */
+export const authConfig: AuthConfig = {
+  mode: '${config.mode}',
+  oauthProviders: ${JSON.stringify(config.providers)},
+};
+`;
 
   fs.writeFileSync(authConfigPath, content);
   out(`Configured OAuth: ${config.mode} mode with ${config.providers.join(', ')}`);
