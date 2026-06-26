@@ -78,9 +78,9 @@ export default config;
 
 Auto-discovered by `src/resourceOverrides.ts` via `import.meta.glob('./resources/*.{ts,tsx}', { eager: true })`. No registration step.
 
-### 2. Group sidebar resources by category
+### 2. Group, order, icon, and hide sidebar resources
 
-App-wide `davepi-ui.config.ts`:
+App-wide `davepi-ui.config.ts` controls grouping order:
 
 ```ts
 import { defineConfig } from '@davepi/ui-core';
@@ -92,7 +92,19 @@ export default defineConfig({
 });
 ```
 
-Then set `category` on each per-resource override file. Resources without `category` land at the bottom in alphabetical order.
+Then set per-resource nav fields on each override file (or under `resources` in the app config):
+
+```ts
+const config: ResourceConfig = {
+  category: 'CRM',          // sidebar group; respects categoryOrder above
+  icon: 'users',            // lucide name (kebab/snake/Pascal) OR an emoji '👤'
+  hidden: false,            // true → drop from sidebar + dashboard (route still works)
+};
+```
+
+- Resources without `category` land at the bottom in alphabetical order; items within a group sort alphabetically by label.
+- `icon` resolves against the [lucide](https://lucide.dev) set (`'shopping-cart'`, `'ShoppingCart'`, `'users'` all work); anything unmatched renders as a literal string, so emojis just work. Rendered by `src/components/ResourceIcon.tsx`.
+- `hidden` is **cosmetic only** — it declutters nav, the `/r/{path}…` routes still resolve. For real access control use `permissions` / backend ACL (recipe 8).
 
 ### 3. Group form fields into sections
 
@@ -173,7 +185,26 @@ const config: ResourceConfig = {
 };
 ```
 
-`<Sidebar>` hides resources excluded by `permissions.list`. `<ResourceTable>` hides the "New" / "Delete" buttons. `<ResourceForm>` disables fields gated by field-level ACL on the backend.
+`<Sidebar>` hides resources excluded by `permissions.list` (server still enforces). `<ResourceTable>` hides the "New" / "Delete" buttons. `<ResourceForm>` disables fields gated by field-level ACL on the backend. To declutter nav *without* a role gate, use `hidden: true` (recipe 2) instead.
+
+### 9. Customize the dashboard / home page
+
+App-wide `davepi-ui.config.ts` `dashboard` block tunes the home view (`src/pages/DashboardPage.tsx`):
+
+```ts
+export default defineConfig({
+  apiBaseUrl: import.meta.env.VITE_API_URL,
+  dashboard: {
+    title: 'Admin',                    // default: 'Dashboard'
+    subtitle: 'Welcome back.',         // '' hides the line; omit for default copy
+    resourceCards: ['account', 'order'], // explicit list + order; omit → every resource
+    // showResourceCards: false,        // blank canvas — then drop your own widgets in
+  },
+});
+```
+
+- Cards skip any resource with `hidden: true` and honour its `icon` / `pluralLabel`.
+- For a fully custom dashboard, set `showResourceCards: false` and edit `DashboardPage.tsx` directly — it's part of the app template you clone, not a published package.
 
 ## MCP server (`@davepi/ui-mcp`)
 
@@ -214,6 +245,10 @@ Configure in `.mcp.json`:
 | auth + 401 refresh interceptor | `packages/ui-react/src/auth/AuthProvider.tsx` |
 | describe + resource hooks | `packages/ui-react/src/hooks/*.ts` |
 | widget component for kind X | `packages/ui-app-react/src/widgets/{Kind}.tsx` |
+| sidebar grouping / icon / hidden | `packages/ui-app-react/src/components/Sidebar.tsx` |
+| resource icon resolution (lucide/emoji) | `packages/ui-app-react/src/components/ResourceIcon.tsx` |
+| dashboard / home page | `packages/ui-app-react/src/pages/DashboardPage.tsx` |
+| config field definitions | `packages/ui-core/src/config.ts` |
 | add a shadcn primitive | `packages/ui-app-react/src/components/ui/` |
 | descriptor JSON schemas | `packages/ui-core/src/descriptor/index.ts` |
 | component manifest entries | `packages/ui-core/src/manifest.ts` |

@@ -6,6 +6,7 @@ import {
   useResourcePerm,
 } from '@davepi/ui-react';
 import { cn } from '@/lib/utils';
+import { ResourceIcon } from './ResourceIcon';
 
 /**
  * Sidebar nav derived from the live `/_describe` manifest, with
@@ -15,6 +16,9 @@ import { cn } from '@/lib/utils';
  *     respects `config.categoryOrder` first, then alphabetical.
  *   - Labels prefer the consumer config's `label`/`pluralLabel`, falling
  *     back to backend hints, falling back to title-cased path.
+ *   - An optional `config.resources[path].icon` renders beside the label.
+ *   - Resources with `config.resources[path].hidden` are dropped from the
+ *     menu (routes still resolve — this is cosmetic, not access control).
  *   - Resources excluded by `permissions.list` (consumer config) OR
  *     `acl.list` (describe) are hidden — server still enforces.
  */
@@ -53,6 +57,7 @@ export function Sidebar() {
 interface SectionEntry {
   path: string;
   pluralLabel: string;
+  icon?: string;
 }
 
 interface Section {
@@ -68,12 +73,13 @@ function SidebarSections({ currentPath }: { currentPath: string }) {
     if (!data) return [];
     const byCategory = new Map<string, SectionEntry[]>();
     for (const path of data.registry.paths()) {
-      const display = data.registry.display(path);
       const cfg = resolveResource(path);
+      if (cfg.hidden) continue;
+      const display = data.registry.display(path);
       const category = cfg.category ?? '';
       const label = cfg.pluralLabel ?? cfg.label ?? display.pluralLabel;
       const list = byCategory.get(category) ?? [];
-      list.push({ path, pluralLabel: label });
+      list.push({ path, pluralLabel: label, icon: cfg.icon });
       byCategory.set(category, list);
     }
     const orderedCategories = orderCategories(
@@ -122,6 +128,7 @@ function SidebarSection({
           key={entry.path}
           path={entry.path}
           pluralLabel={entry.pluralLabel}
+          icon={entry.icon}
           currentPath={currentPath}
         />
       ))}
@@ -132,10 +139,12 @@ function SidebarSection({
 function SidebarLink({
   path,
   pluralLabel,
+  icon,
   currentPath,
 }: {
   path: string;
   pluralLabel: string;
+  icon?: string;
   currentPath: string;
 }) {
   const perm = useResourcePerm(path, 'list');
@@ -146,10 +155,11 @@ function SidebarLink({
     <Link
       to={href}
       className={cn(
-        'rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
+        'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
         active && 'bg-accent text-accent-foreground'
       )}
     >
+      <ResourceIcon name={icon} className="size-4 shrink-0 text-muted-foreground" />
       {pluralLabel}
     </Link>
   );

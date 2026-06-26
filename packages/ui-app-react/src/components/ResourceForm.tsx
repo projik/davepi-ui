@@ -91,9 +91,19 @@ export function ResourceForm({
 
   const omit = useMemo(() => {
     const base = new Set(DEFAULT_OMIT);
+    // Also omit any field the backend flagged `stamped` (server fills
+    // from JWT — client value ignored) or `computed` (server derives
+    // from other fields on read — sending a value is meaningless and
+    // would be silently overwritten). Both flags carry the same form
+    // semantics: hide from create/edit, treat as read-only.
+    if (entry) {
+      for (const f of entry.fields) {
+        if (f.stamped || f.computed) base.add(f.name);
+      }
+    }
     for (const f of omitFields ?? []) base.add(f);
     return base;
-  }, [omitFields]);
+  }, [entry, omitFields]);
 
   const hidden = useMemo(() => new Set(hiddenFields ?? []), [hiddenFields]);
 
