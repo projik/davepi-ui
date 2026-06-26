@@ -86,8 +86,13 @@ function scalar(field: DescribeField): ZodTypeAny {
       return z.boolean();
     case 'Number':
       return z.coerce.number();
-    case 'Date':
-      return z.coerce.date();
+    case 'Date': {
+      const date = z.coerce.date();
+      return z.preprocess(
+        (v) => (v === '' || v === null ? undefined : v),
+        field.required ? date : date.optional(),
+      );
+    }
     case 'String':
     case 'ObjectId':
       return field.required ? z.string().min(1) : z.string();
