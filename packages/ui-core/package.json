@@ -1,6 +1,6 @@
 {
   "name": "@davepi/ui-core",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Framework-agnostic schema registry, widget resolver, and JSON descriptors for davepi-ui — the schema-driven, agent-first admin UI framework for davepi backends.",
   "keywords": [
     "davepi",
