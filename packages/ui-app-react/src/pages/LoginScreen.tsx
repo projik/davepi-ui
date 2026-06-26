@@ -22,7 +22,7 @@ const providerButtonClasses: Record<OAuthProvider, string> = {
 };
 
 export function LoginScreen() {
-  const { login, status } = useAuth();
+  const { login, status, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,13 +30,24 @@ export function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
+  // VITE_API_URL may be unset/empty in a misconfigured deploy. Normalise once
+  // and gate OAuth on a usable base URL so we never send the user to a
+  // malformed `/auth/<provider>` link.
+  const oauthBaseUrl = typeof apiUrl === 'string' ? apiUrl.trim().replace(/\/+$/, '') : '';
+  const oauthConfigured = oauthBaseUrl !== '';
   const showEmailPassword = authConfig.mode === 'combined' || authConfig.mode === 'email-only';
   const showOAuth = authConfig.mode === 'combined' || authConfig.mode === 'oauth-only';
   const hasProviders = authConfig.oauthProviders.length > 0;
+  const oauthAvailable = showOAuth && hasProviders && oauthConfigured;
 
+  // Require a decoded `user`, not just `status`, before redirecting away.
+  // AuthProvider can reach status='authenticated' with user=null when the
+  // access token fails to decode (e.g. a malformed OAuth token); AuthGuard
+  // rejects that state and falls back to /login, so redirecting on status
+  // alone produces an infinite /login↔/ loop.
   useEffect(() => {
-    if (status === 'authenticated') navigate('/', { replace: true });
-  }, [navigate, status]);
+    if (status === 'authenticated' && user) navigate('/', { replace: true });
+  }, [navigate, status, user]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +63,12 @@ export function LoginScreen() {
   }
 
   function redirectToOAuth(provider: OAuthProvider) {
-    window.location.href = `${apiUrl}/auth/${provider}`;
+    try {
+      // Construct + validate; throws on a malformed/empty base URL.
+      window.location.href = new URL(`${oauthBaseUrl}/auth/${provider}`).toString();
+    } catch {
+      setError('Cannot start OAuth sign-in: VITE_API_URL is not configured.');
+    }
   }
 
   return (
@@ -97,7 +113,7 @@ export function LoginScreen() {
             </form>
           )}
 
-          {showEmailPassword && showOAuth && hasProviders && (
+          {showEmailPassword && oauthAvailable && (
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t" />
@@ -108,7 +124,7 @@ export function LoginScreen() {
             </div>
           )}
 
-          {showOAuth && hasProviders && (
+          {oauthAvailable && (
             <div className="flex flex-col gap-3">
               {authConfig.oauthProviders.map((provider) => (
                 <Button
@@ -122,6 +138,12 @@ export function LoginScreen() {
                 </Button>
               ))}
             </div>
+          )}
+
+          {showOAuth && hasProviders && !oauthConfigured && (
+            <p role="alert" className="mt-4 text-sm text-destructive">
+              OAuth sign-in is unavailable: set <code>VITE_API_URL</code> to your davepi backend URL.
+            </p>
           )}
         </CardContent>
       </Card>

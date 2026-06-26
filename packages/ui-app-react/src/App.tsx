@@ -1,16 +1,44 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthGuard, useAuth } from '@davepi/ui-react';
 import { AppShell } from './components/AppShell';
 import { LoginScreen } from './pages/LoginScreen';
-import { OAuthCallback } from './pages/OAuthCallback';
 import { DashboardPage } from './pages/DashboardPage';
 import { ResourceListPage } from './pages/ResourceListPage';
 import { ResourceCreatePage } from './pages/ResourceCreatePage';
 import { ResourceEditPage } from './pages/ResourceEditPage';
 import { ResourceDetailPage } from './pages/ResourceDetailPage';
 
+/**
+ * Adopt an OAuth token pair that davepi-plugin-oauth lands on the redirect
+ * URL as `?token=…&refreshToken=…`. Handled here at the app root rather than
+ * via a dedicated route so `App.tsx` keeps only the canonical resource routes.
+ *
+ * Tokens are scrubbed from the URL with a `replace` navigation the moment
+ * they are read, so they don't linger in the address bar, browser history, or
+ * outgoing referrers. The remaining query-string exposure (request logs,
+ * referrer on the redirect itself) is a backend concern: the robust fix is an
+ * authorization-code + state exchange in davepi-plugin-oauth — tracked as a
+ * follow-up.
+ */
+function useAdoptOAuthTokens() {
+  const { setSession } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const accessToken = params.get('token');
+    const refreshToken = params.get('refreshToken');
+    if (!accessToken || !refreshToken) return;
+
+    setSession({ accessToken, refreshToken });
+    navigate('/', { replace: true });
+  }, [navigate, setSession]);
+}
+
 export function App() {
   const { status } = useAuth();
+  useAdoptOAuthTokens();
 
   if (status === 'unknown') {
     return (
@@ -23,7 +51,6 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
-      <Route path="/auth/callback" element={<OAuthCallback />} />
       <Route
         path="/"
         element={

@@ -44,4 +44,15 @@ describe('zodFromDescribe', () => {
     expect(parsed.amount).toBe(12.5);
     expect(parsed.closeDate).toBeInstanceOf(Date);
   });
+
+  it('treats empty string and null as undefined for optional Date fields', () => {
+    const Schema = zodFromDescribe(manifest.schemas['v1/deal']!);
+    const fromEmpty = Schema.safeParse({ accountId: 'a1', name: 'x', closeDate: '' });
+    expect(fromEmpty.success).toBe(true);
+    expect(fromEmpty.data?.closeDate).toBeUndefined();
+
+    const fromNull = Schema.safeParse({ accountId: 'a1', name: 'x', closeDate: null });
+    expect(fromNull.success).toBe(true);
+    expect(fromNull.data?.closeDate).toBeUndefined();
+  });
 });
