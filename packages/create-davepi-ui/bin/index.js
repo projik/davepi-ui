@@ -46,15 +46,21 @@ function err(line) {
  *   - string when flag has a non-flag value following
  *
  * Throws when the next token starts with `--` so a missing value
- * doesn't silently consume the next flag's name.
+ * doesn't silently consume the next flag's name. Pass
+ * `{ requireValue: true }` for value flags (e.g. `--auth`, `--api-url`)
+ * so a bare flag with no value is a usage error rather than a silent
+ * `true` that callers drop on the floor.
  */
-function flag(args, name) {
+function flag(args, name, { requireValue = false } = {}) {
   const i = args.indexOf(name);
   if (i === -1) return null;
   const next = args[i + 1];
-  if (next === undefined) return true;
-  if (typeof next === 'string' && next.startsWith('--')) {
-    const e = new Error(`Flag ${name} requires a value (got "${next}" which looks like another flag)`);
+  const missingValue =
+    next === undefined || (typeof next === 'string' && next.startsWith('--'));
+  if (missingValue) {
+    if (!requireValue) return true;
+    const detail = next === undefined ? 'none given' : `got "${next}" which looks like another flag`;
+    const e = new Error(`Flag ${name} requires a value (${detail})`);
     e.usage = true;
     throw e;
   }
@@ -280,10 +286,10 @@ async function main() {
 
   let apiUrl, skipInstall, authFlag, oauthConfig;
   try {
-    const a = flag(args, '--api-url');
+    const a = flag(args, '--api-url', { requireValue: true });
     apiUrl = typeof a === 'string' ? a : DEFAULT_API_URL;
     skipInstall = flag(args, '--no-install') === true;
-    const auth = flag(args, '--auth');
+    const auth = flag(args, '--auth', { requireValue: true });
     authFlag = typeof auth === 'string' ? auth : null;
 
     if (authFlag && authFlag !== 'oauth') {
