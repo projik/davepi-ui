@@ -23,7 +23,19 @@ export interface ResourceConfig {
   pluralLabel?: string;
   displayField?: string;
   category?: string;
+  /**
+   * Icon for this resource in the sidebar / dashboard. Either a
+   * [lucide](https://lucide.dev) icon name (`'users'`, `'shopping-cart'`,
+   * `'ShoppingCart'` — kebab/snake/Pascal all accepted) or any literal
+   * string (e.g. an emoji `'📦'`), rendered as-is when no icon matches.
+   */
   icon?: string;
+  /**
+   * Hide this resource from the sidebar and dashboard. The routes
+   * (`/r/:path…`) still resolve — this only declutters navigation, it is
+   * NOT an access control (use `permissions` / backend ACL for that).
+   */
+  hidden?: boolean;
   listColumns?: ColumnSpec[];
   formSections?: FormSectionSpec[];
   widgets?: Record<string, WidgetKind>;
@@ -52,6 +64,25 @@ export interface DavepiUiConfig {
   resources?: Record<string, ResourceConfig>;
   /** Order of categories in the sidebar. Unlisted categories go after. */
   categoryOrder?: string[];
+  /** Home / dashboard page customization. */
+  dashboard?: DashboardConfig;
+}
+
+export interface DashboardConfig {
+  /** Heading shown at the top of the dashboard. Default: `'Dashboard'`. */
+  title?: string;
+  /** Sub-heading under the title. Set to `''` to hide the default copy. */
+  subtitle?: string;
+  /**
+   * Render the auto-generated grid of resource cards. Default: `true`.
+   * Set `false` when you want a blank dashboard to drop custom widgets onto.
+   */
+  showResourceCards?: boolean;
+  /**
+   * Restrict the resource cards to these resource paths, in this order.
+   * Omit to show every (non-`hidden`) resource. Unknown paths are skipped.
+   */
+  resourceCards?: string[];
 }
 
 /**

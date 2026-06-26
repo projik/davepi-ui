@@ -54,6 +54,12 @@ export interface DescribeField {
   label?: string;
   /** True when the server fills this field from the JWT — UI hides it from create / edit forms. */
   stamped?: boolean;
+  /**
+   * True when the server derives this field from other fields on read.
+   * Sending a value is meaningless (silently overwritten), so the UI
+   * treats it like `stamped`: hidden from create / edit, read-only.
+   */
+  computed?: boolean;
 }
 
 export type DescribeRelation =
