@@ -1,5 +1,11 @@
 # @davepi/ui-core
 
+## 0.4.1
+
+### Patch Changes
+
+- [#20](https://github.com/projik/davepi-ui/pull/20) [`e188998`](https://github.com/projik/davepi-ui/commit/e18899840499b5b1873d552f3adf2552904b0e1c) Thanks [@projik](https://github.com/projik)! - Fix `zodFromDescribe` rejecting empty optional Date fields. Optional `Date` fields now treat `''` and `null` as "no date set" (coerced to `undefined`) instead of failing with an "invalid date" error.
+
 ## 0.3.0
 
 ### Patch Changes
