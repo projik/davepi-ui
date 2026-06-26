@@ -1,5 +1,12 @@
 # @davepi/ui-mcp
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [[`40d419a`](https://github.com/projik/davepi-ui/commit/40d419ae82861e4c0bc966bbab9cb8bf9b6feec7)]:
+  - @davepi/ui-core@0.5.0
+
 ## 0.3.0
 
 ### Patch Changes
