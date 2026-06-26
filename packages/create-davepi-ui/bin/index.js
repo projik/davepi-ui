@@ -82,18 +82,36 @@ function copyTree(src, dst, skip) {
 }
 
 /**
+ * A template root is only usable if it carries the whole app, not just a
+ * stray file or two. `templates/` is generated at publish time and gitignored,
+ * so a partial copy can exist in a monorepo checkout (e.g. a few files
+ * accidentally committed); preferring it would scaffold a project that can't
+ * build. Gate on sentinels that the full template always has.
+ */
+function isCompleteTemplate(dir) {
+  return (
+    fs.existsSync(path.join(dir, 'package.json')) &&
+    fs.existsSync(path.join(dir, 'src', 'main.tsx'))
+  );
+}
+
+/**
  * Resolve the template root. Two layouts:
  *   - published package: `<pkg>/templates/default` (shipped via
  *     `prepublishOnly`).
  *   - inside the monorepo during dev: fall back to
  *     `<pkg>/../ui-app-react` directly.
+ *
+ * The shipped template is only used when it's complete; otherwise we fall
+ * back to the live `ui-app-react` source so a partial generated copy never
+ * yields a broken scaffold.
  */
 function resolveTemplate() {
   const shipped = path.resolve(__dirname, '..', 'templates', 'default');
-  if (fs.existsSync(shipped)) return shipped;
+  if (isCompleteTemplate(shipped)) return shipped;
   const monorepoFallback = path.resolve(__dirname, '..', '..', 'ui-app-react');
-  if (fs.existsSync(monorepoFallback)) return monorepoFallback;
-  err('Could not find scaffolder template. Reinstall create-davepi-ui.');
+  if (isCompleteTemplate(monorepoFallback)) return monorepoFallback;
+  err('Could not find a complete scaffolder template. Reinstall create-davepi-ui.');
   process.exit(1);
 }
 

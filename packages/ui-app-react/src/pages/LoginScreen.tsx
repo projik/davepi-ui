@@ -22,7 +22,7 @@ const providerButtonClasses: Record<OAuthProvider, string> = {
 };
 
 export function LoginScreen() {
-  const { login, status } = useAuth();
+  const { login, status, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,9 +34,14 @@ export function LoginScreen() {
   const showOAuth = authConfig.mode === 'combined' || authConfig.mode === 'oauth-only';
   const hasProviders = authConfig.oauthProviders.length > 0;
 
+  // Require a decoded `user`, not just `status`, before redirecting away.
+  // AuthProvider can reach status='authenticated' with user=null when the
+  // access token fails to decode (e.g. a malformed OAuth token); AuthGuard
+  // rejects that state and falls back to /login, so redirecting on status
+  // alone produces an infinite /login↔/ loop.
   useEffect(() => {
-    if (status === 'authenticated') navigate('/', { replace: true });
-  }, [navigate, status]);
+    if (status === 'authenticated' && user) navigate('/', { replace: true });
+  }, [navigate, status, user]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
